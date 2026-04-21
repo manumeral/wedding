@@ -1,0 +1,6 @@
+.worktrees/
+worktrees/
+.superpowers/brainstorm/
+node_modules/
+.next/
+.env.local
