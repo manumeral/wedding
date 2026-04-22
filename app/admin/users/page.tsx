@@ -23,7 +23,7 @@ export default async function AdminUsersPage() {
 
   return (
     <main className="min-h-screen pb-24">
-      <Navbar isAdmin />
+      <Navbar isAdmin user={{ name: profile.full_name, avatarUrl: profile.avatar_url }} />
 
       <section className="pt-28 pb-10 bg-gradient-to-b from-cream to-ivory">
         <div className="container-page">

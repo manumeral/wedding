@@ -22,7 +22,7 @@ export default async function RequestsPage() {
 
   return (
     <main className="min-h-screen pb-24">
-      <Navbar isAdmin={!!profile?.is_admin} />
+      <Navbar isAdmin={!!profile?.is_admin} user={profile ? { name: profile.full_name, avatarUrl: profile.avatar_url } : null} />
 
       {/* Hero strip */}
       <section className="relative pt-32 pb-14 overflow-hidden">

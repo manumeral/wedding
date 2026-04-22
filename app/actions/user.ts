@@ -1,5 +1,6 @@
 'use server'
 
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 export async function getUserProfile() {
@@ -16,6 +17,12 @@ export async function getUserProfile() {
 
   if (error) console.error('[getUserProfile]', error.message)
   return profile
+}
+
+export async function signOut() {
+  const supabase = createClient()
+  await supabase.auth.signOut()
+  redirect('/login')
 }
 
 export async function getEvents() {

@@ -4,17 +4,28 @@ import { Hero } from '@/components/Hero'
 import { Navbar } from '@/components/Navbar'
 import Image from 'next/image'
 import Link from 'next/link'
-import { KeyRound, MessageCircleHeart, ImagePlus, ArrowRight } from 'lucide-react'
+import { KeyRound, MessageCircleHeart, ImagePlus, ArrowRight, Users } from 'lucide-react'
+import { Avatar } from '@/components/Avatar'
+import { getGuests } from '@/app/actions/profile'
 
 export default async function Home() {
   const profile = await getUserProfile()
   const events = await getEvents()
+  const guests = profile ? await getGuests() : []
 
   const firstName = profile?.full_name?.split(' ')[0] ?? null
+  const profileIncomplete = profile
+    ? !profile.avatar_url || !profile.bio || profile.bio.trim().length === 0
+    : false
+  const previewGuests = guests.filter((g) => g.id !== profile?.id).slice(0, 4)
 
   return (
     <main className="min-h-screen">
-      <Navbar isAdmin={!!profile?.is_admin} transparent />
+      <Navbar
+        isAdmin={!!profile?.is_admin}
+        transparent
+        user={profile ? { name: profile.full_name, avatarUrl: profile.avatar_url } : null}
+      />
 
       <Hero name={firstName} />
 
@@ -43,6 +54,24 @@ export default async function Home() {
                   Request something
                 </Link>
               </div>
+
+              {profileIncomplete && (
+                <Link
+                  href="/profile"
+                  className="mt-6 flex items-center gap-3 p-3 pr-4 rounded-2xl bg-gradient-to-r from-blush-50 to-gold-50 border border-blush-100 hover:border-wine-300 transition group"
+                >
+                  <Avatar name={profile?.full_name} src={profile?.avatar_url} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-wine-700">
+                      Add a photo &amp; intro
+                    </p>
+                    <p className="text-xs text-stone-500 truncate">
+                      Help other guests recognise you on the day
+                    </p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-wine-700 group-hover:translate-x-0.5 transition" />
+                </Link>
+              )}
             </div>
 
             <div className="relative rounded-3xl overflow-hidden shadow-soft-lg animate-fade-up">
@@ -126,7 +155,7 @@ export default async function Home() {
             <h2 className="section-title">Everything you might need</h2>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <Link href="/requests" className="group card p-7 flex items-start gap-5 hover:shadow-soft-lg transition-all hover:-translate-y-0.5">
               <div className="shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-blush-200 to-blush-300 flex items-center justify-center text-wine-700">
                 <MessageCircleHeart className="w-7 h-7" />
@@ -136,6 +165,33 @@ export default async function Home() {
                 <p className="text-stone-600 text-sm">Cab, airport pickup, water bottles, or anything else &mdash; we&apos;ve got you.</p>
                 <p className="mt-3 text-wine-700 text-sm inline-flex items-center font-medium group-hover:gap-2 gap-1.5 transition-all">
                   Send a request <ArrowRight className="w-3.5 h-3.5" />
+                </p>
+              </div>
+            </Link>
+
+            <Link href="/guests" className="group card p-7 flex items-start gap-5 hover:shadow-soft-lg transition-all hover:-translate-y-0.5">
+              <div className="shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-wine-600 to-wine-800 flex items-center justify-center text-gold-200">
+                <Users className="w-7 h-7" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-serif text-2xl text-wine-700 mb-1">Who&rsquo;s Coming</h3>
+                <p className="text-stone-600 text-sm">Meet the rest of the {guests.length || ''} crew before you arrive.</p>
+                {previewGuests.length > 0 && (
+                  <div className="mt-3 flex items-center -space-x-2">
+                    {previewGuests.map((g) => (
+                      <div key={g.id} className="ring-2 ring-ivory rounded-full">
+                        <Avatar name={g.full_name} src={g.avatar_url} size="sm" />
+                      </div>
+                    ))}
+                    {guests.length > previewGuests.length + 1 && (
+                      <span className="ml-3 text-xs text-stone-500 font-medium">
+                        +{guests.length - previewGuests.length - 1} more
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p className="mt-3 text-wine-700 text-sm inline-flex items-center font-medium group-hover:gap-2 gap-1.5 transition-all">
+                  See guest list <ArrowRight className="w-3.5 h-3.5" />
                 </p>
               </div>
             </Link>

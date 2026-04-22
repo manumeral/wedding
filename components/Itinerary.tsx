@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import { Carousel } from './Carousel'
-import { Calendar, MapPin, Sparkles } from 'lucide-react'
+import { Calendar, MapPin, Sparkles, Radio, BellRing } from 'lucide-react'
 
 interface Event {
   name: string
@@ -142,10 +142,14 @@ export function Itinerary({ events }: { events: any[] }) {
         { name: "Reception", date: "2 May '26 · Night", location: "Bokaro Steel City", order_index: 5 },
       ]
 
+  const liveEvents = displayEvents.filter(
+    (e) => e.live_status_message && e.live_status_message.trim().length > 0
+  )
+
   return (
     <section id="itinerary" className="py-20 scroll-mt-20">
       <div className="container-page">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <p className="section-sub">save the dates</p>
           <h2 className="section-title">Wedding Itinerary</h2>
           <div className="divider-ornament">
@@ -158,6 +162,8 @@ export function Itinerary({ events }: { events: any[] }) {
           </p>
         </div>
 
+        <LiveTrackerBanner liveEvents={liveEvents} />
+
         <Carousel>
           {displayEvents.map((ev, i) => (
             <EventCard key={i} event={ev} />
@@ -165,6 +171,85 @@ export function Itinerary({ events }: { events: any[] }) {
         </Carousel>
       </div>
     </section>
+  )
+}
+
+function LiveTrackerBanner({ liveEvents }: { liveEvents: Event[] }) {
+  const hasLive = liveEvents.length > 0
+
+  if (hasLive) {
+    return (
+      <div className="relative mb-10 rounded-3xl overflow-hidden shadow-soft-lg border border-green-400/30">
+        <div className="absolute inset-0 bg-gradient-to-br from-green-600 via-green-700 to-wine-800" />
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,white,transparent_50%)]" />
+
+        <div className="relative px-6 sm:px-8 py-6 sm:py-7 text-white">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <span className="relative inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/30 text-xs font-semibold uppercase tracking-wider">
+              <span className="relative flex w-2 h-2">
+                <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-75 animate-ping" />
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-white" />
+              </span>
+              Live now
+            </span>
+            <h3 className="font-serif text-2xl sm:text-3xl text-shadow-soft">
+              Happening right now
+            </h3>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {liveEvents.map((ev, i) => (
+              <div
+                key={i}
+                className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-4"
+              >
+                <p className="font-serif text-xl mb-1">{ev.name}</p>
+                <p className="text-sm italic text-white/90">
+                  &ldquo;{ev.live_status_message}&rdquo;
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-5 text-sm text-white/80 text-shadow-soft">
+            Stay on this page &mdash; we&rsquo;ll keep updating as the day unfolds. Pull to refresh on your phone to see the latest.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative mb-10 rounded-3xl overflow-hidden shadow-soft border border-blush-200/60">
+      <div className="absolute inset-0 bg-gradient-to-br from-cream via-ivory to-blush-50" />
+      <div className="relative px-6 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="relative flex-none w-12 h-12 rounded-2xl bg-gradient-to-br from-wine-600 to-wine-800 flex items-center justify-center shadow-soft">
+            <Radio className="w-5 h-5 text-gold-200" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-ivory animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <h3 className="font-serif text-xl text-wine-700">Live event tracker</h3>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-700 border border-green-500/30 text-[10px] font-semibold uppercase tracking-wider">
+                On
+              </span>
+            </div>
+            <p className="text-sm text-stone-600">
+              We&rsquo;ll post real-time updates on each event here &mdash; delays, start times, where to go next.
+              Check back through the day so you never miss a moment.
+            </p>
+          </div>
+        </div>
+        <div className="sm:text-right text-xs text-stone-500 sm:border-l sm:border-blush-200 sm:pl-4">
+          <p className="inline-flex items-center gap-1.5 font-medium text-wine-700">
+            <BellRing className="w-3.5 h-3.5" />
+            Bookmark this page
+          </p>
+          <p className="mt-0.5 text-stone-500">Refresh to see the latest status</p>
+        </div>
+      </div>
+    </div>
   )
 }
 

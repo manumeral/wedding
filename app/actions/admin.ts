@@ -88,3 +88,41 @@ export async function toggleUserAdmin(userId: string, isAdmin: boolean) {
   revalidatePath('/admin/users')
   return { success: true }
 }
+
+export async function getAllEventsAdmin() {
+  await assertAdmin()
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, name, date, location, live_status_message, order_index')
+    .order('order_index', { ascending: true })
+
+  if (error) {
+    console.error('[admin.getAllEventsAdmin]', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function updateEventLiveStatus(eventId: string, message: string) {
+  await assertAdmin()
+  const supabase = createClient()
+
+  const trimmed = message.trim()
+  const value = trimmed === '' ? null : trimmed
+
+  const { error } = await supabase
+    .from('events')
+    .update({ live_status_message: value })
+    .eq('id', eventId)
+
+  if (error) {
+    console.error('[admin.updateEventLiveStatus]', error)
+    throw new Error(error.message)
+  }
+
+  revalidatePath('/admin/events')
+  revalidatePath('/')
+  return { success: true }
+}
