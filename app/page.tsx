@@ -1,60 +1,180 @@
 import { getUserProfile, getEvents } from '@/app/actions/user'
 import { Itinerary } from '@/components/Itinerary'
+import { Hero } from '@/components/Hero'
+import { Navbar } from '@/components/Navbar'
+import Image from 'next/image'
 import Link from 'next/link'
+import { KeyRound, MessageCircleHeart, ImagePlus, ArrowRight } from 'lucide-react'
 
 export default async function Home() {
   const profile = await getUserProfile()
   const events = await getEvents()
 
+  const firstName = profile?.full_name?.split(' ')[0] ?? null
+
   return (
-    <main className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <header className="bg-rose-800 text-white py-6 px-4 shadow-md">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-serif">Prachi & Mayank</h1>
-          <nav className="hidden sm:flex gap-6">
-            <Link href="/" className="hover:text-rose-200">Home</Link>
-            <Link href="/requests" className="hover:text-rose-200">Request Help</Link>
-            <Link href="/photos" className="hover:text-rose-200">Photos</Link>
-            {profile?.is_admin && (
-              <Link href="/admin" className="font-bold text-yellow-300 hover:text-yellow-100">Admin</Link>
-            )}
-          </nav>
-        </div>
-      </header>
+    <main className="min-h-screen">
+      <Navbar isAdmin={!!profile?.is_admin} transparent />
 
-      <div className="max-w-4xl mx-auto px-4 mt-8 space-y-8">
-        {/* Welcome & Logistics */}
-        <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-xl font-semibold mb-2">Welcome{profile?.full_name ? `, ${profile.full_name}` : ''}!</h2>
-          <p className="text-gray-600 mb-4">We are so excited to celebrate our special days with you.</p>
-          
-          {profile?.room_number ? (
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg">
-              <p className="text-blue-800">
-                <span className="font-bold">Your Room Allocation:</span> Room {profile.room_number}
+      <Hero name={firstName} />
+
+      {/* Welcome + Room Allocation */}
+      <section className="relative py-20 bg-gradient-to-b from-ivory via-cream to-ivory">
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none">
+          <Image src="/images/wedding-illustration.png" alt="" fill className="object-cover" />
+        </div>
+        <div className="container-page relative">
+          <div className="grid md:grid-cols-2 gap-8 items-stretch">
+            <div className="card p-8 md:p-10 animate-fade-up">
+              <p className="section-sub">a warm welcome</p>
+              <h2 className="font-serif text-3xl sm:text-4xl text-wine-700 mb-4">
+                {firstName ? `Hello, ${firstName}!` : 'Hello!'}
+              </h2>
+              <p className="text-stone-600 leading-relaxed mb-6">
+                We&apos;re over the moon that you&apos;ll be part of our celebrations.
+                This little portal is your home base for the week &mdash; itineraries, room details,
+                and a way to ping the organizers if you need anything at all.
               </p>
+              <div className="flex flex-wrap gap-3">
+                <Link href="#itinerary" className="btn-primary">
+                  See the schedule <ArrowRight className="w-4 h-4 ml-2" />
+                </Link>
+                <Link href="/requests" className="btn-secondary">
+                  Request something
+                </Link>
+              </div>
             </div>
-          ) : (
-            <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-              <p className="text-gray-600">Your room allocation will appear here once assigned by the organizers.</p>
-            </div>
-          )}
-        </section>
 
-        {/* Itinerary */}
-        <Itinerary events={events} />
-        
-        {/* Quick Links for Mobile */}
-        <div className="grid grid-cols-2 gap-4 sm:hidden">
-          <Link href="/requests" className="bg-white p-4 rounded-xl shadow-sm text-center font-medium text-rose-700 border border-rose-100">
-            Request Help
-          </Link>
-          <Link href="/photos" className="bg-white p-4 rounded-xl shadow-sm text-center font-medium text-rose-700 border border-rose-100">
-            Photos
-          </Link>
+            <div className="relative rounded-3xl overflow-hidden shadow-soft-lg animate-fade-up">
+              <div className="absolute inset-0 bg-gradient-to-br from-wine-700 via-wine-800 to-wine-800" />
+              <div className="absolute inset-0 opacity-30">
+                <Image src="/images/couple-hero.png" alt="" fill className="object-cover object-top mask-fade-b" />
+              </div>
+              <div className="relative p-8 md:p-10 text-ivory h-full flex flex-col justify-between min-h-[240px]">
+                <div className="flex items-center gap-2 text-gold-300">
+                  <KeyRound className="w-5 h-5" />
+                  <span className="uppercase tracking-[0.25em] text-xs font-medium">Your stay</span>
+                </div>
+                {profile?.room_number ? (
+                  <div>
+                    <p className="text-sm text-ivory/70 mb-1">Room allocation</p>
+                    <p className="font-serif text-5xl sm:text-6xl text-gold-200">
+                      #{profile.room_number}
+                    </p>
+                    <p className="text-ivory/80 mt-3 text-sm">
+                      Swing by the reception desk with your ID to collect your key. We&apos;ll see you there!
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-ivory/70 mb-2">Room allocation</p>
+                    <p className="font-serif text-2xl sm:text-3xl text-gold-200 mb-3">Coming soon</p>
+                    <p className="text-ivory/80 text-sm">
+                      Your room will appear here once the organizers assign it. Need it urgently?
+                      <Link href="/requests" className="underline ml-1 decoration-gold-300 underline-offset-4">Let us know</Link>.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <Itinerary events={events} />
+
+      {/* Our Story */}
+      <section className="relative py-20 bg-gradient-to-br from-blush-50 via-cream to-gold-100 overflow-hidden">
+        <div className="container-page relative">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-soft-lg">
+              <Image
+                src="/images/wedding-illustration.png"
+                alt="Prachi and Mayank illustration"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-wine-800/40 via-transparent to-transparent" />
+            </div>
+            <div className="animate-fade-up">
+              <p className="section-sub">the happy couple</p>
+              <h2 className="section-title mb-6">Our story, so far</h2>
+              <p className="text-stone-700 leading-relaxed mb-4">
+                Two people, one journey, and countless tiny moments that brought us here.
+                From first hellos to planning a life together &mdash; it still feels a little
+                unreal that the big day is just around the corner.
+              </p>
+              <p className="text-stone-700 leading-relaxed mb-6">
+                We can&apos;t wait to share every laugh, every dance, and every plate of food with you.
+                Thank you for making the trip and being part of our forever.
+              </p>
+              <div className="flex items-center gap-3 text-wine-700">
+                <span className="h-px w-12 bg-gold-400" />
+                <span className="font-script text-3xl">Prachi &amp; Mayank</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Quick actions carousel (mobile-first) */}
+      <section className="py-16 bg-ivory">
+        <div className="container-page">
+          <div className="text-center mb-10">
+            <p className="section-sub">before you go</p>
+            <h2 className="section-title">Everything you might need</h2>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-5">
+            <Link href="/requests" className="group card p-7 flex items-start gap-5 hover:shadow-soft-lg transition-all hover:-translate-y-0.5">
+              <div className="shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-blush-200 to-blush-300 flex items-center justify-center text-wine-700">
+                <MessageCircleHeart className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="font-serif text-2xl text-wine-700 mb-1">Request Help</h3>
+                <p className="text-stone-600 text-sm">Cab, airport pickup, water bottles, or anything else &mdash; we&apos;ve got you.</p>
+                <p className="mt-3 text-wine-700 text-sm inline-flex items-center font-medium group-hover:gap-2 gap-1.5 transition-all">
+                  Send a request <ArrowRight className="w-3.5 h-3.5" />
+                </p>
+              </div>
+            </Link>
+
+            <Link href="/photos" className="group card p-7 flex items-start gap-5 hover:shadow-soft-lg transition-all hover:-translate-y-0.5">
+              <div className="shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-gold-200 to-gold-400 flex items-center justify-center text-wine-800">
+                <ImagePlus className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="font-serif text-2xl text-wine-700 mb-1">Share Memories</h3>
+                <p className="text-stone-600 text-sm">Upload your candid shots to our shared album so nothing gets lost.</p>
+                <p className="mt-3 text-wine-700 text-sm inline-flex items-center font-medium group-hover:gap-2 gap-1.5 transition-all">
+                  Open gallery <ArrowRight className="w-3.5 h-3.5" />
+                </p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative bg-wine-800 text-ivory py-14 overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <Image src="/images/couple-hero.png" alt="" fill className="object-cover object-top" />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-wine-800 via-wine-800/90 to-wine-800/70" />
+        <div className="container-page relative text-center">
+          <p className="font-script text-5xl sm:text-6xl text-gold-200 mb-2">Prachi &amp; Mayank</p>
+          <p className="uppercase tracking-[0.35em] text-xs text-ivory/70">27 · April · 2026</p>
+          <div className="divider-ornament">
+            <span className="h-px w-16 bg-gold-300/50" />
+            <span className="text-lg text-gold-300">❖</span>
+            <span className="h-px w-16 bg-gold-300/50" />
+          </div>
+          <p className="text-ivory/70 text-sm max-w-md mx-auto">
+            Thank you for being part of our story. Safe travels, and see you on the dance floor.
+          </p>
+        </div>
+      </footer>
     </main>
   )
 }

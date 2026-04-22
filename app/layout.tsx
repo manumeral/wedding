@@ -1,12 +1,28 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Playfair_Display, Dancing_Script } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
+const dancing = Dancing_Script({
+  subsets: ["latin"],
+  variable: "--font-dancing",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Prachi & Mayank",
-  description: "Wedding Portal for Prachi & Mayank",
+  title: "Prachi & Mayank · 27 April 2026",
+  description: "The wedding portal for Prachi & Mayank — itinerary, logistics, and memories.",
 };
 
 export default function RootLayout({
@@ -15,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" className={`${inter.variable} ${playfair.variable} ${dancing.variable}`}>
+      <body className="font-sans bg-ivory text-stone-800 antialiased">{children}</body>
     </html>
   );
 }

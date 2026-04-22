@@ -1,3 +1,67 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: #FDFAF3;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-title {
+    @apply font-serif text-3xl sm:text-4xl text-wine-700 tracking-tight;
+  }
+
+  .section-sub {
+    @apply font-script text-2xl text-blush-400 -mt-1;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-soft border border-blush-100/50;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-wine-700 hover:bg-wine-800 text-ivory font-medium tracking-wide px-6 py-3 transition-all shadow-soft hover:shadow-soft-lg;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full bg-white hover:bg-cream text-wine-700 font-medium tracking-wide px-6 py-3 border border-blush-200 transition-all;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center rounded-full bg-gradient-to-r from-gold-300 to-gold-400 hover:from-gold-400 hover:to-gold-500 text-wine-800 font-medium tracking-wide px-6 py-3 shadow-soft;
+  }
+
+  .divider-ornament {
+    @apply flex items-center justify-center gap-4 text-gold-400 my-8;
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .text-shadow-soft {
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+  }
+  .text-shadow-strong {
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+  }
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+  }
+}

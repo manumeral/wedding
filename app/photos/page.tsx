@@ -1,39 +1,103 @@
+import { getUserProfile } from '@/app/actions/user'
+import { Navbar } from '@/components/Navbar'
+import { Carousel } from '@/components/Carousel'
+import Image from 'next/image'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { Camera, Upload, Heart } from 'lucide-react'
 
-export default function PhotosPage() {
-  // Replace this with actual Google Photos album URL
-  const GOOGLE_PHOTOS_URL = "https://photos.google.com/album/placeholder"
+export default async function PhotosPage() {
+  const profile = await getUserProfile()
+  // TODO: replace with the actual shared album URL
+  const GOOGLE_PHOTOS_URL = 'https://photos.google.com/album/placeholder'
+
+  const highlights = [
+    { src: '/images/couple-hero.png', caption: 'The big moment', fit: 'object-cover object-[center_20%]', bg: '' },
+    { src: '/images/wedding-illustration.png', caption: 'Little memories', fit: 'object-cover object-top', bg: '' },
+    { src: '/images/haldi.png', caption: 'Haldi day', fit: 'object-contain object-bottom', bg: 'bg-gradient-to-br from-gold-100 to-gold-300' },
+  ]
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-20 flex flex-col">
-      <header className="bg-rose-800 text-white py-6 px-4 shadow-md">
-        <div className="max-w-4xl mx-auto flex items-center gap-4">
-          <Link href="/" className="text-rose-200 hover:text-white">← Back</Link>
-          <h1 className="text-2xl font-serif">Wedding Gallery</h1>
-        </div>
-      </header>
+    <main className="min-h-screen pb-24">
+      <Navbar isAdmin={!!profile?.is_admin} />
 
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="bg-white max-w-md w-full p-8 rounded-xl shadow-sm border border-gray-200 text-center">
-          <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          
-          <h2 className="text-2xl font-serif text-gray-900 mb-3">Share Your Memories</h2>
-          <p className="text-gray-600 mb-8">
-            We've created a shared Google Photos album for everyone to upload their candid shots and videos from the wedding. We can't wait to see the celebration through your eyes!
-          </p>
-          
-          <a href={GOOGLE_PHOTOS_URL} target="_blank" rel="noopener noreferrer" className="block">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg h-14">
-              Open Google Photos Album
-            </Button>
-          </a>
+      {/* Hero */}
+      <section className="relative pt-32 pb-14 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gold-100 via-blush-100 to-cream" />
+        <div className="absolute inset-0 opacity-10">
+          <Image src="/images/wedding-illustration.png" alt="" fill className="object-cover object-center" />
         </div>
-      </div>
+        <div className="container-page relative text-center">
+          <p className="section-sub">memory lane</p>
+          <h1 className="section-title">The Wedding Gallery</h1>
+          <p className="text-stone-600 max-w-xl mx-auto mt-3">
+            Candids, chaos, and quiet moments &mdash; all shared in one place so nothing gets lost in a thousand WhatsApp groups.
+          </p>
+        </div>
+      </section>
+
+      {/* Highlights carousel */}
+      <section className="py-10">
+        <div className="container-page">
+          <Carousel slideClass="w-[80%] sm:w-[45%] lg:w-[32%]">
+            {highlights.map((h, i) => (
+              <figure key={i} className={`relative h-[420px] rounded-3xl overflow-hidden shadow-soft group ${h.bg}`}>
+                <Image src={h.src} alt={h.caption} fill sizes="(max-width: 640px) 80vw, 32vw" className={`${h.fit} transition-transform duration-700 group-hover:scale-105`} />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-wine-800/80 via-wine-800/40 to-transparent p-6">
+                  <p className="font-serif text-2xl text-white text-shadow-soft">{h.caption}</p>
+                </div>
+              </figure>
+            ))}
+          </Carousel>
+        </div>
+      </section>
+
+      {/* Upload CTA */}
+      <section className="container-page mt-10">
+        <div className="relative rounded-3xl overflow-hidden shadow-soft-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-wine-700 via-wine-800 to-black" />
+          <div className="absolute inset-0 opacity-25">
+            <Image src="/images/couple-hero.png" alt="" fill className="object-cover object-top" />
+          </div>
+          <div className="relative p-8 sm:p-12 text-ivory">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8 justify-between">
+              <div className="max-w-xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-300/15 border border-gold-300/30 text-gold-200 text-xs font-medium uppercase tracking-wider mb-4">
+                  <Camera className="w-3.5 h-3.5" />
+                  Shared album
+                </div>
+                <h2 className="font-serif text-3xl sm:text-4xl mb-3">Send us your pictures!</h2>
+                <p className="text-ivory/80 leading-relaxed">
+                  We&apos;ve set up a shared Google Photos album for everyone &mdash; the dance floor moments,
+                  the in-between smiles, the food closeups. Upload whatever you&apos;ve got, and we&apos;ll
+                  be able to relive every bit together.
+                </p>
+              </div>
+              <a href={GOOGLE_PHOTOS_URL} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                <span className="btn-gold text-base px-8 py-4">
+                  <Upload className="w-5 h-5 mr-2" />
+                  Open the album
+                </span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-10 grid sm:grid-cols-3 gap-4 text-center">
+          {[
+            { icon: Camera, title: 'No limits', body: 'Upload as many as you\'d like — photos and videos both welcome.' },
+            { icon: Heart, title: 'Tag your favourites', body: 'Drop a heart on the ones that made your week.' },
+            { icon: Upload, title: 'Everyone shares', body: 'Every guest with the link can contribute to the album.' },
+          ].map(({ icon: Icon, title, body }) => (
+            <div key={title} className="card p-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blush-100 to-blush-200 flex items-center justify-center text-wine-700 mx-auto mb-3">
+                <Icon className="w-6 h-6" />
+              </div>
+              <h3 className="font-serif text-xl text-wine-700 mb-1">{title}</h3>
+              <p className="text-sm text-stone-600">{body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
     </main>
   )
 }

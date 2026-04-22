@@ -1,0 +1,90 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+
+async function assertAdmin() {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.is_admin) throw new Error('Unauthorized')
+  return { supabase, user }
+}
+
+export async function getAllUsers() {
+  const { supabase } = await assertAdmin()
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, full_name, room_number, is_admin, created_at')
+    .order('full_name', { ascending: true, nullsFirst: false })
+
+  if (error) {
+    console.error('[admin.getAllUsers]', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function updateUserRoom(userId: string, roomNumber: string) {
+  await assertAdmin()
+  const supabase = createClient()
+
+  const value = roomNumber.trim() === '' ? null : roomNumber.trim()
+
+  const { error } = await supabase
+    .from('users')
+    .update({ room_number: value })
+    .eq('id', userId)
+
+  if (error) {
+    console.error('[admin.updateUserRoom]', error)
+    throw new Error(error.message)
+  }
+
+  revalidatePath('/admin/users')
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function updateUserName(userId: string, fullName: string) {
+  await assertAdmin()
+  const supabase = createClient()
+
+  const value = fullName.trim() === '' ? null : fullName.trim()
+
+  const { error } = await supabase
+    .from('users')
+    .update({ full_name: value })
+    .eq('id', userId)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
+export async function toggleUserAdmin(userId: string, isAdmin: boolean) {
+  const { user } = await assertAdmin()
+  if (user.id === userId && !isAdmin) {
+    throw new Error('You cannot remove your own admin rights')
+  }
+
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('users')
+    .update({ is_admin: isAdmin })
+    .eq('id', userId)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
