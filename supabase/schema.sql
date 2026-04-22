@@ -34,30 +34,36 @@ alter table public.users enable row level security;
 alter table public.requests enable row level security;
 alter table public.events enable row level security;
 
+-- Helper that bypasses RLS to check admin status (avoids recursion when
+-- admin policies reference the users table).
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select is_admin from public.users where id = auth.uid()),
+    false
+  );
+$$;
+grant execute on function public.is_admin() to authenticated;
+
 -- Users policies
 create policy "Users can view own profile." on users for select using (auth.uid() = id);
-create policy "Admins can view all profiles." on users for select using (
-  exists (select 1 from users where id = auth.uid() and is_admin = true)
-);
-create policy "Admins can update users." on users for update using (
-  exists (select 1 from users where id = auth.uid() and is_admin = true)
-);
+create policy "Admins can view all profiles." on users for select using (public.is_admin());
+create policy "Admins can update users." on users for update using (public.is_admin());
 
 -- Requests policies
 create policy "Users can view own requests." on requests for select using (auth.uid() = user_id);
 create policy "Users can insert own requests." on requests for insert with check (auth.uid() = user_id);
-create policy "Admins can view all requests." on requests for select using (
-  exists (select 1 from users where id = auth.uid() and is_admin = true)
-);
-create policy "Admins can update requests." on requests for update using (
-  exists (select 1 from users where id = auth.uid() and is_admin = true)
-);
+create policy "Admins can view all requests." on requests for select using (public.is_admin());
+create policy "Admins can update requests." on requests for update using (public.is_admin());
 
 -- Events policies
 create policy "Anyone can view events." on events for select using (true);
-create policy "Admins can update events." on events for update using (
-  exists (select 1 from users where id = auth.uid() and is_admin = true)
-);
+create policy "Admins can update events." on events for update using (public.is_admin());
 
 -- Function to handle new user signup
 create function public.handle_new_user()
