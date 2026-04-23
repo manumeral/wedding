@@ -5,7 +5,7 @@ create table public.users (
   full_name text,
   bio text,
   avatar_url text,
-  is_admin boolean default false not null,
+  admin_level text not null default 'none' check (admin_level in ('none', 'admin', 'super_admin')),
   room_number text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -68,16 +68,50 @@ security definer
 set search_path = public
 as $$
   select coalesce(
-    (select is_admin from public.users where id = auth.uid()),
+    (select admin_level in ('admin', 'super_admin') from public.users where id = auth.uid()),
     false
   );
 $$;
 grant execute on function public.is_admin() to authenticated;
 
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select admin_level = 'super_admin' from public.users where id = auth.uid()),
+    false
+  );
+$$;
+grant execute on function public.is_super_admin() to authenticated;
+
 -- Users policies
 create policy "Users can view own profile." on users for select using (auth.uid() = id);
 create policy "Admins can view all profiles." on users for select using (public.is_admin());
 create policy "Admins can update users." on users for update using (public.is_admin());
+
+create or replace function public.enforce_admin_level_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'UPDATE' and new.admin_level is distinct from old.admin_level then
+    if not public.is_super_admin() then
+      raise exception 'Only super-admins can change admin_level';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_users_admin_level
+  before update on public.users
+  for each row execute procedure public.enforce_admin_level_change();
 
 -- Requests policies
 create policy "Users can view own requests." on requests for select using (auth.uid() = user_id);
@@ -90,7 +124,7 @@ create policy "Anyone can view events." on events for select using (true);
 create policy "Admins can update events." on events for update using (public.is_admin());
 
 -- Self-service profile update (so guests can edit name/bio/avatar but not
--- is_admin / room_number, which would be unsafe to expose via UPDATE policy).
+-- admin_level / room_number, which would be unsafe to expose via UPDATE policy).
 create or replace function public.update_my_profile(
   p_full_name text,
   p_avatar_url text,
@@ -117,7 +151,7 @@ $$;
 grant execute on function public.update_my_profile(text, text, text) to authenticated;
 
 -- Sanitized guest directory: every authenticated user can see name/avatar/bio
--- for everyone else, but not email / room / admin flag.
+-- for everyone else, but not email / room / admin_level.
 create or replace function public.get_guests()
 returns table (id uuid, full_name text, avatar_url text, bio text)
 language sql
