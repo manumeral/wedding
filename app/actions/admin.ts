@@ -10,11 +10,13 @@ async function assertAdmin() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('is_admin')
+    .select('admin_level')
     .eq('id', user.id)
     .single()
 
-  if (!profile?.is_admin) throw new Error('Unauthorized')
+  if (profile?.admin_level !== 'admin' && profile?.admin_level !== 'super_admin') {
+    throw new Error('Unauthorized')
+  }
   return { supabase, user }
 }
 
@@ -23,7 +25,7 @@ export async function getAllUsers() {
 
   const { data, error } = await supabase
     .from('users')
-    .select('id, email, full_name, room_number, is_admin, created_at')
+    .select('id, email, full_name, room_number, admin_level, created_at')
     .order('full_name', { ascending: true, nullsFirst: false })
 
   if (error) {
@@ -63,24 +65,6 @@ export async function updateUserName(userId: string, fullName: string) {
   const { error } = await supabase
     .from('users')
     .update({ full_name: value })
-    .eq('id', userId)
-
-  if (error) throw new Error(error.message)
-
-  revalidatePath('/admin/users')
-  return { success: true }
-}
-
-export async function toggleUserAdmin(userId: string, isAdmin: boolean) {
-  const { user } = await assertAdmin()
-  if (user.id === userId && !isAdmin) {
-    throw new Error('You cannot remove your own admin rights')
-  }
-
-  const supabase = createClient()
-  const { error } = await supabase
-    .from('users')
-    .update({ is_admin: isAdmin })
     .eq('id', userId)
 
   if (error) throw new Error(error.message)

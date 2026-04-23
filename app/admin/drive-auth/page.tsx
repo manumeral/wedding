@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
 import { getUserProfile } from '@/app/actions/user'
+import { isStaffLevel } from '@/lib/auth/roles'
 import {
   getConnectionStatus,
   folderUrl as getFolderUrl,
@@ -28,7 +29,7 @@ interface PageProps {
 
 export default async function DriveAuthPage({ searchParams }: PageProps) {
   const profile = await getUserProfile()
-  if (!profile?.is_admin) redirect('/')
+  if (!isStaffLevel(profile?.admin_level)) redirect('/')
 
   const status = await getConnectionStatus()
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim()

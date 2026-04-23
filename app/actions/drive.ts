@@ -20,10 +20,12 @@ async function assertAdmin() {
   if (!user) throw new Error('Not authenticated')
   const { data: profile } = await supabase
     .from('users')
-    .select('is_admin')
+    .select('admin_level')
     .eq('id', user.id)
     .single()
-  if (!profile?.is_admin) throw new Error('Unauthorized')
+  if (profile?.admin_level !== 'admin' && profile?.admin_level !== 'super_admin') {
+    throw new Error('Unauthorized')
+  }
 }
 
 export async function startDriveAuth() {

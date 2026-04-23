@@ -1,5 +1,6 @@
 import { getAllEventsAdmin } from '@/app/actions/admin'
 import { getUserProfile } from '@/app/actions/user'
+import { isStaffLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
@@ -8,7 +9,7 @@ import { CalendarDays, Radio, CheckCircle2 } from 'lucide-react'
 
 export default async function AdminEventsPage() {
   const profile = await getUserProfile()
-  if (!profile?.is_admin) redirect('/')
+  if (!isStaffLevel(profile?.admin_level)) redirect('/')
 
   const events = await getAllEventsAdmin()
 

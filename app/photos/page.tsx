@@ -6,6 +6,7 @@ import { PhotoUploader } from '@/components/photos/PhotoUploader'
 import { PhotoGallery } from '@/components/photos/PhotoGallery'
 import Image from 'next/image'
 import Link from 'next/link'
+import { isStaffLevel } from '@/lib/auth/roles'
 import {
   Camera,
   ExternalLink,
@@ -19,7 +20,7 @@ export default async function PhotosPage() {
   if (!profile) redirect('/login')
 
   const album = await getAlbumState()
-  const isAdmin = !!profile.is_admin
+  const isAdmin = isStaffLevel(profile.admin_level)
 
   const canUpload = album.connected && !album.needsReconnect
 

@@ -1,4 +1,5 @@
 import { getGuests } from '@/app/actions/profile'
+import { isStaffLevel } from '@/lib/auth/roles'
 import { getUserProfile } from '@/app/actions/user'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -16,7 +17,7 @@ export default async function GuestsPage() {
 
   return (
     <main className="min-h-screen pb-24">
-      <Navbar isAdmin={!!profile.is_admin} user={{ name: profile.full_name, avatarUrl: profile.avatar_url }} />
+      <Navbar isAdmin={isStaffLevel(profile.admin_level)} user={{ name: profile.full_name, avatarUrl: profile.avatar_url }} />
 
       <section className="relative pt-32 pb-14 overflow-hidden">
         <div className="absolute inset-0 -z-10">

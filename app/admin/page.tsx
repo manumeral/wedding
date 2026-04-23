@@ -1,5 +1,6 @@
 import { getAllRequests, updateRequestStatus } from '@/app/actions/requests'
 import { getUserProfile } from '@/app/actions/user'
+import { isStaffLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
@@ -14,7 +15,7 @@ const statusStyle: Record<string, string> = {
 
 export default async function AdminPage() {
   const profile = await getUserProfile()
-  if (!profile?.is_admin) redirect('/')
+  if (!isStaffLevel(profile?.admin_level)) redirect('/')
 
   const requests = await getAllRequests()
 

@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Radio, Camera } from 'lucide-react'
+import { LayoutDashboard, Users, Radio, Camera, Crown } from 'lucide-react'
 
 const tabs = [
   { href: '/admin', label: 'Requests', icon: LayoutDashboard, matches: (p: string) => p === '/admin' },
   { href: '/admin/users', label: 'Guests & Rooms', icon: Users, matches: (p: string) => p.startsWith('/admin/users') },
+  { href: '/admin/team', label: 'Team', icon: Crown, matches: (p: string) => p.startsWith('/admin/team') },
   { href: '/admin/events', label: 'Live Events', icon: Radio, matches: (p: string) => p.startsWith('/admin/events') },
   { href: '/admin/drive-auth', label: 'Drive', icon: Camera, matches: (p: string) => p.startsWith('/admin/drive-auth') },
 ]

@@ -1,28 +1,37 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { updateUserRoom, toggleUserAdmin } from '@/app/actions/admin'
-import { Check, X, Loader2, Pencil, Shield, ShieldCheck } from 'lucide-react'
+import { updateUserRoom } from '@/app/actions/admin'
+import { setUserAdminLevel } from '@/app/actions/super-admin'
+import type { AdminLevel } from '@/lib/auth/roles'
+import { Check, X, Loader2, Pencil, Shield, ShieldCheck, Crown } from 'lucide-react'
 
 interface User {
   id: string
   email: string
   full_name: string | null
   room_number: string | null
-  is_admin: boolean
+  admin_level: AdminLevel | string
   created_at: string
 }
 
 interface Props {
   user: User
   currentUserId: string
+  canEditRoles: boolean
 }
 
-export function UserRow({ user, currentUserId }: Props) {
+function roleLabel(level: string): string {
+  if (level === 'super_admin') return 'Super-admin'
+  if (level === 'admin') return 'Admin'
+  return 'Guest'
+}
+
+export function UserRow({ user, currentUserId, canEditRoles }: Props) {
   const [editing, setEditing] = useState(false)
   const [roomValue, setRoomValue] = useState(user.room_number ?? '')
   const [optimisticRoom, setOptimisticRoom] = useState(user.room_number)
-  const [optimisticAdmin, setOptimisticAdmin] = useState(user.is_admin)
+  const [optimisticLevel, setOptimisticLevel] = useState<string>(user.admin_level ?? 'none')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -51,15 +60,14 @@ export function UserRow({ user, currentUserId }: Props) {
     if (e.key === 'Escape') cancelEdit()
   }
 
-  const toggleAdmin = () => {
-    const next = !optimisticAdmin
+  const onRoleChange = (next: AdminLevel) => {
     setError(null)
     startTransition(async () => {
       try {
-        await toggleUserAdmin(user.id, next)
-        setOptimisticAdmin(next)
+        await setUserAdminLevel(user.id, next)
+        setOptimisticLevel(next)
       } catch (e: any) {
-        setError(e.message ?? 'Failed to update')
+        setError(e.message ?? 'Failed to update role')
       }
     })
   }
@@ -133,21 +141,47 @@ export function UserRow({ user, currentUserId }: Props) {
       </td>
 
       <td className="px-6 py-4">
-        <button
-          type="button"
-          onClick={toggleAdmin}
-          disabled={isPending || (isSelf && optimisticAdmin)}
-          aria-label={optimisticAdmin ? 'Revoke admin' : 'Make admin'}
-          title={isSelf && optimisticAdmin ? "You can't remove your own admin rights" : undefined}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-            optimisticAdmin
-              ? 'bg-gold-100 text-gold-500 border-gold-200 hover:bg-gold-200'
-              : 'bg-white text-stone-500 border-stone-200 hover:border-wine-500 hover:text-wine-700'
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          {optimisticAdmin ? <ShieldCheck className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
-          {optimisticAdmin ? 'Admin' : 'Guest'}
-        </button>
+        {canEditRoles ? (
+          <div className="flex items-center gap-2">
+            <select
+              value={optimisticLevel}
+              disabled={isPending}
+              onChange={(e) => onRoleChange(e.target.value as AdminLevel)}
+              className="text-xs font-medium rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-wine-800 focus:outline-none focus:ring-2 focus:ring-wine-500 disabled:opacity-50"
+              aria-label="Change role"
+            >
+              <option value="none">Guest</option>
+              <option value="admin">Admin</option>
+              <option value="super_admin">Super-admin</option>
+            </select>
+            {optimisticLevel === 'super_admin' ? (
+              <Crown className="w-4 h-4 text-gold-500 shrink-0" aria-hidden />
+            ) : optimisticLevel === 'admin' ? (
+              <ShieldCheck className="w-4 h-4 text-gold-600 shrink-0" aria-hidden />
+            ) : (
+              <Shield className="w-4 h-4 text-stone-300 shrink-0" aria-hidden />
+            )}
+          </div>
+        ) : (
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${
+              optimisticLevel === 'super_admin'
+                ? 'bg-gold-100 text-gold-700 border-gold-200'
+                : optimisticLevel === 'admin'
+                  ? 'bg-gold-50 text-gold-600 border-gold-100'
+                  : 'bg-white text-stone-500 border-stone-200'
+            }`}
+          >
+            {optimisticLevel === 'super_admin' ? (
+              <Crown className="w-3.5 h-3.5" />
+            ) : optimisticLevel === 'admin' ? (
+              <ShieldCheck className="w-3.5 h-3.5" />
+            ) : (
+              <Shield className="w-3.5 h-3.5" />
+            )}
+            {roleLabel(optimisticLevel)}
+          </span>
+        )}
       </td>
 
       <td className="px-6 py-4 text-xs text-stone-400 whitespace-nowrap">

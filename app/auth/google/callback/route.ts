@@ -44,10 +44,10 @@ export async function GET(req: Request) {
   }
   const { data: profile } = await supabase
     .from('users')
-    .select('is_admin')
+    .select('admin_level')
     .eq('id', user.id)
     .single()
-  if (!profile?.is_admin) {
+  if (profile?.admin_level !== 'admin' && profile?.admin_level !== 'super_admin') {
     return errorRedirect(req, 'Only admins can connect the shared Drive account.')
   }
 

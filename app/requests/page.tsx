@@ -1,5 +1,6 @@
 import { submitRequest, getMyRequests } from '@/app/actions/requests'
 import { getUserProfile } from '@/app/actions/user'
+import { isStaffLevel } from '@/lib/auth/roles'
 import { Navbar } from '@/components/Navbar'
 import { Car, Plane, GlassWater, HelpCircle, Clock, CheckCircle2, UserCheck } from 'lucide-react'
 import Image from 'next/image'
@@ -22,7 +23,7 @@ export default async function RequestsPage() {
 
   return (
     <main className="min-h-screen pb-24">
-      <Navbar isAdmin={!!profile?.is_admin} user={profile ? { name: profile.full_name, avatarUrl: profile.avatar_url } : null} />
+      <Navbar isAdmin={isStaffLevel(profile?.admin_level)} user={profile ? { name: profile.full_name, avatarUrl: profile.avatar_url } : null} />
 
       {/* Hero strip */}
       <section className="relative pt-32 pb-14 overflow-hidden">

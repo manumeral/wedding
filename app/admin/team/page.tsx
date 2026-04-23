@@ -1,27 +1,23 @@
 import { getAllUsers } from '@/app/actions/admin'
 import { getUserProfile } from '@/app/actions/user'
-import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
+import { isSuperAdminLevel, isStaffLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
 import { UserRow } from '@/components/admin/UserRow'
-import { Users, KeyRound, UserCheck } from 'lucide-react'
+import { Users, Crown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 
-export default async function AdminUsersPage() {
+export default async function AdminTeamPage() {
   const profile = await getUserProfile()
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
+  if (!isSuperAdminLevel(profile?.admin_level)) redirect('/admin/users')
 
   const [users, authResult] = await Promise.all([
     getAllUsers(),
     createClient().auth.getUser(),
   ])
   const currentUserId = authResult.data.user?.id ?? ''
-
-  const totalGuests = users.length
-  const assigned = users.filter((u) => u.room_number).length
-  const admins = users.filter((u) => isStaffLevel(u.admin_level)).length
-  const canEditRoles = isSuperAdminLevel(profile?.admin_level)
 
   return (
     <main className="min-h-screen pb-24">
@@ -32,24 +28,28 @@ export default async function AdminUsersPage() {
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
               <p className="section-sub">organizer tools</p>
-              <h1 className="section-title">Guests &amp; Rooms</h1>
+              <h1 className="section-title flex items-center gap-2">
+                <Crown className="w-8 h-8 text-gold-500" aria-hidden />
+                Team &amp; roles
+              </h1>
+              <p className="text-sm text-stone-600 mt-2 max-w-xl">
+                Only super-admins can change roles. Admins can still assign rooms on{' '}
+                <a href="/admin/users" className="text-wine-700 underline">
+                  Guests &amp; Rooms
+                </a>
+                .
+              </p>
             </div>
             <AdminTabs />
-          </div>
-
-          <div className="grid sm:grid-cols-3 gap-4">
-            <Stat icon={Users} label="Total guests" value={totalGuests} tint="from-blush-100 to-blush-200" text="text-wine-700" />
-            <Stat icon={KeyRound} label="Rooms assigned" value={`${assigned} / ${totalGuests}`} tint="from-gold-100 to-gold-200" text="text-gold-500" />
-            <Stat icon={UserCheck} label="Staff (admin+)" value={admins} tint="from-green-100 to-green-200" text="text-green-700" />
           </div>
         </div>
       </section>
 
       <section className="container-page mt-6">
         <div className="card overflow-hidden">
-          <div className="px-6 py-4 border-b border-blush-100 flex items-center justify-between">
-            <h2 className="font-serif text-xl text-wine-700">All guests</h2>
-            <p className="text-sm text-stone-500">Click on a room number to edit it</p>
+          <div className="px-6 py-4 border-b border-blush-100">
+            <h2 className="font-serif text-xl text-wine-700">Everyone</h2>
+            <p className="text-sm text-stone-500 mt-1">Set Guest, Admin, or Super-admin per person.</p>
           </div>
 
           {users.length === 0 ? (
@@ -74,7 +74,7 @@ export default async function AdminUsersPage() {
                       key={u.id}
                       user={u}
                       currentUserId={currentUserId}
-                      canEditRoles={canEditRoles}
+                      canEditRoles
                     />
                   ))}
                 </tbody>
@@ -84,19 +84,5 @@ export default async function AdminUsersPage() {
         </div>
       </section>
     </main>
-  )
-}
-
-function Stat({ icon: Icon, label, value, tint, text }: any) {
-  return (
-    <div className="card p-5 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tint} flex items-center justify-center ${text}`}>
-        <Icon className="w-6 h-6" />
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-wider text-stone-500">{label}</p>
-        <p className="font-serif text-3xl text-wine-700">{value}</p>
-      </div>
-    </div>
   )
 }

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { KeyRound, MessageCircleHeart, ImagePlus, ArrowRight, Users } from 'lucide-react'
 import { Avatar } from '@/components/Avatar'
 import { getGuests } from '@/app/actions/profile'
+import { isStaffLevel } from '@/lib/auth/roles'
 
 export default async function Home() {
   const profile = await getUserProfile()
@@ -22,7 +23,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen">
       <Navbar
-        isAdmin={!!profile?.is_admin}
+        isAdmin={isStaffLevel(profile?.admin_level)}
         transparent
         user={profile ? { name: profile.full_name, avatarUrl: profile.avatar_url } : null}
       />
