@@ -45,6 +45,19 @@ alter table public.events enable row level security;
 alter table public.app_config enable row level security;
 -- app_config has no policies; only service_role (server) can access it.
 
+-- Count-and-insert buckets for auth rate limiting (service-role only).
+create table public.auth_rate_limits (
+  id bigserial primary key,
+  kind text not null,
+  identifier text not null,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index auth_rate_limits_lookup
+  on public.auth_rate_limits (kind, identifier, created_at desc);
+
+alter table public.auth_rate_limits enable row level security;
+
 -- Helper that bypasses RLS to check admin status (avoids recursion when
 -- admin policies reference the users table).
 create or replace function public.is_admin()
