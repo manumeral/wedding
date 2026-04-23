@@ -1,6 +1,6 @@
 import { getAllRequests, updateRequestStatus } from '@/app/actions/requests'
 import { getUserProfile } from '@/app/actions/user'
-import { isStaffLevel } from '@/lib/auth/roles'
+import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
@@ -16,6 +16,7 @@ const statusStyle: Record<string, string> = {
 export default async function AdminPage() {
   const profile = await getUserProfile()
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
+  const isSuper = isSuperAdminLevel(profile?.admin_level)
 
   const requests = await getAllRequests()
 
@@ -34,7 +35,7 @@ export default async function AdminPage() {
               <p className="section-sub">organizer tools</p>
               <h1 className="section-title">Admin Dashboard</h1>
             </div>
-            <AdminTabs />
+            <AdminTabs isSuperAdmin={isSuper} />
           </div>
 
           {/* Stat cards */}

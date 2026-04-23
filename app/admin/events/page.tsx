@@ -1,6 +1,6 @@
 import { getAllEventsAdmin } from '@/app/actions/admin'
 import { getUserProfile } from '@/app/actions/user'
-import { isStaffLevel } from '@/lib/auth/roles'
+import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
@@ -10,6 +10,7 @@ import { CalendarDays, Radio, CheckCircle2 } from 'lucide-react'
 export default async function AdminEventsPage() {
   const profile = await getUserProfile()
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
+  const isSuper = isSuperAdminLevel(profile?.admin_level)
 
   const events = await getAllEventsAdmin()
 
@@ -28,7 +29,7 @@ export default async function AdminEventsPage() {
               <p className="section-sub">organizer tools</p>
               <h1 className="section-title">Live Event Status</h1>
             </div>
-            <AdminTabs />
+            <AdminTabs isSuperAdmin={isSuper} />
           </div>
 
           <div className="grid sm:grid-cols-3 gap-4">

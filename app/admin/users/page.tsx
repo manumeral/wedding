@@ -1,4 +1,5 @@
 import { getAllUsers } from '@/app/actions/admin'
+import { listGroups, listGuestGroupAssignments } from '@/app/actions/groups'
 import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
@@ -12,16 +13,23 @@ export default async function AdminUsersPage() {
   const profile = await getUserProfile()
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
 
-  const [users, authResult] = await Promise.all([
+  const canAssignGroups = isSuperAdminLevel(profile?.admin_level)
+
+  const [users, authResult, guestGroups, assignments] = await Promise.all([
     getAllUsers(),
     createClient().auth.getUser(),
+    canAssignGroups ? listGroups() : Promise.resolve([]),
+    canAssignGroups ? listGuestGroupAssignments() : Promise.resolve({} as Record<string, string[]>),
   ])
   const currentUserId = authResult.data.user?.id ?? ''
+
+  const allGroups = guestGroups.map((g) => ({ id: g.id, name: g.name }))
 
   const totalGuests = users.length
   const assigned = users.filter((u) => u.room_number).length
   const admins = users.filter((u) => isStaffLevel(u.admin_level)).length
-  const canEditRoles = isSuperAdminLevel(profile?.admin_level)
+  const canEditRoles = canAssignGroups
+  const isSuper = canAssignGroups
 
   return (
     <main className="min-h-screen pb-24">
@@ -34,7 +42,7 @@ export default async function AdminUsersPage() {
               <p className="section-sub">organizer tools</p>
               <h1 className="section-title">Guests &amp; Rooms</h1>
             </div>
-            <AdminTabs />
+            <AdminTabs isSuperAdmin={isSuper} />
           </div>
 
           <div className="grid sm:grid-cols-3 gap-4">
@@ -65,6 +73,7 @@ export default async function AdminUsersPage() {
                     <th className="px-6 py-3 font-medium">Guest</th>
                     <th className="px-6 py-3 font-medium">Room</th>
                     <th className="px-6 py-3 font-medium">Role</th>
+                    {canAssignGroups && <th className="px-6 py-3 font-medium">Groups</th>}
                     <th className="px-6 py-3 font-medium">Joined</th>
                   </tr>
                 </thead>
@@ -75,6 +84,9 @@ export default async function AdminUsersPage() {
                       user={u}
                       currentUserId={currentUserId}
                       canEditRoles={canEditRoles}
+                      canAssignGroups={canAssignGroups}
+                      allGroups={allGroups}
+                      userGroupIds={assignments[u.id] ?? []}
                     />
                   ))}
                 </tbody>

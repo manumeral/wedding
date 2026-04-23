@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
 import { getUserProfile } from '@/app/actions/user'
-import { isStaffLevel } from '@/lib/auth/roles'
+import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
 import {
   getConnectionStatus,
   folderUrl as getFolderUrl,
@@ -30,6 +30,7 @@ interface PageProps {
 export default async function DriveAuthPage({ searchParams }: PageProps) {
   const profile = await getUserProfile()
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
+  const isSuper = isSuperAdminLevel(profile?.admin_level)
 
   const status = await getConnectionStatus()
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim()
@@ -53,7 +54,7 @@ export default async function DriveAuthPage({ searchParams }: PageProps) {
                 shared Drive folder. Only admins can see this screen.
               </p>
             </div>
-            <AdminTabs />
+            <AdminTabs isSuperAdmin={isSuper} />
           </div>
         </div>
       </section>

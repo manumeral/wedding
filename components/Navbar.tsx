@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Menu, X, LogOut } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { Menu, X, LogOut, Mail } from 'lucide-react'
 import { Avatar } from './Avatar'
 import { signOut } from '@/app/actions/user'
+import { countUnreadInbox } from '@/app/actions/broadcasts'
 
 interface NavbarProps {
   isAdmin?: boolean
@@ -16,8 +18,10 @@ interface NavbarProps {
 }
 
 export function Navbar({ isAdmin = false, transparent = false, user = null }: NavbarProps) {
+  const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const [inboxUnread, setInboxUnread] = useState(0)
 
   useEffect(() => {
     if (!transparent) {
@@ -29,6 +33,20 @@ export function Navbar({ isAdmin = false, transparent = false, user = null }: Na
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [transparent])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!user) {
+      setInboxUnread(0)
+      return
+    }
+    countUnreadInbox().then((n) => {
+      if (!cancelled) setInboxUnread(n)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user, pathname])
 
   const textColor = scrolled ? 'text-wine-800' : 'text-white'
   const hoverColor = scrolled ? 'hover:text-wine-600' : 'hover:text-gold-200'
@@ -51,6 +69,20 @@ export function Navbar({ isAdmin = false, transparent = false, user = null }: Na
           <Link href="/#itinerary" className={`${textColor} ${hoverColor} transition`}>Itinerary</Link>
           <Link href="/guests" className={`${textColor} ${hoverColor} transition`}>Guests</Link>
           <Link href="/requests" className={`${textColor} ${hoverColor} transition`}>Requests</Link>
+          {user && (
+            <Link
+              href="/inbox"
+              className={`inline-flex items-center gap-1.5 ${textColor} ${hoverColor} transition`}
+            >
+              <Mail className="w-4 h-4 opacity-90 shrink-0" aria-hidden />
+              Inbox
+              {inboxUnread > 0 && (
+                <span className="min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full bg-gold-500 text-[10px] font-bold text-wine-900 tabular-nums">
+                  {inboxUnread > 9 ? '9+' : inboxUnread}
+                </span>
+              )}
+            </Link>
+          )}
           <Link href="/photos" className={`${textColor} ${hoverColor} transition`}>Gallery</Link>
           {isAdmin && (
             <Link href="/admin" className={`font-semibold ${scrolled ? 'text-gold-500' : 'text-gold-300'} hover:opacity-80 transition`}>
@@ -116,6 +148,15 @@ export function Navbar({ isAdmin = false, transparent = false, user = null }: Na
             <Link href="/#itinerary" onClick={() => setOpen(false)}>Itinerary</Link>
             <Link href="/guests" onClick={() => setOpen(false)}>Guests</Link>
             <Link href="/requests" onClick={() => setOpen(false)}>Requests</Link>
+            {user && (
+              <Link href="/inbox" onClick={() => setOpen(false)} className="inline-flex items-center gap-2">
+                <Mail className="w-4 h-4" aria-hidden />
+                Inbox
+                {inboxUnread > 0 && (
+                  <span className="text-xs font-semibold text-gold-600">({inboxUnread})</span>
+                )}
+              </Link>
+            )}
             <Link href="/photos" onClick={() => setOpen(false)}>Gallery</Link>
             {isAdmin && (
               <Link href="/admin" onClick={() => setOpen(false)} className="text-gold-500 font-semibold">

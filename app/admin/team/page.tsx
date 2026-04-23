@@ -40,7 +40,7 @@ export default async function AdminTeamPage() {
                 .
               </p>
             </div>
-            <AdminTabs />
+            <AdminTabs isSuperAdmin />
           </div>
         </div>
       </section>

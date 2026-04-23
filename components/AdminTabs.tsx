@@ -2,18 +2,27 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Radio, Camera, Crown } from 'lucide-react'
+import { LayoutDashboard, Users, Radio, Camera, Crown, Tags, Megaphone } from 'lucide-react'
 
-const tabs = [
+const coreTabs = [
   { href: '/admin', label: 'Requests', icon: LayoutDashboard, matches: (p: string) => p === '/admin' },
   { href: '/admin/users', label: 'Guests & Rooms', icon: Users, matches: (p: string) => p.startsWith('/admin/users') },
   { href: '/admin/team', label: 'Team', icon: Crown, matches: (p: string) => p.startsWith('/admin/team') },
+]
+
+const superOnlyTabs = [
+  { href: '/admin/groups', label: 'Groups', icon: Tags, matches: (p: string) => p.startsWith('/admin/groups') },
+  { href: '/admin/broadcast', label: 'Broadcast', icon: Megaphone, matches: (p: string) => p.startsWith('/admin/broadcast') },
+]
+
+const tailTabs = [
   { href: '/admin/events', label: 'Live Events', icon: Radio, matches: (p: string) => p.startsWith('/admin/events') },
   { href: '/admin/drive-auth', label: 'Drive', icon: Camera, matches: (p: string) => p.startsWith('/admin/drive-auth') },
 ]
 
-export function AdminTabs() {
+export function AdminTabs({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const pathname = usePathname()
+  const tabs = isSuperAdmin ? [...coreTabs, ...superOnlyTabs, ...tailTabs] : [...coreTabs, ...tailTabs]
   return (
     <div className="inline-flex bg-white rounded-full p-1.5 border border-blush-100 shadow-soft">
       {tabs.map(({ href, label, icon: Icon, matches }) => {

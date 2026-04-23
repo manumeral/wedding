@@ -5,6 +5,7 @@ import { updateUserRoom } from '@/app/actions/admin'
 import { setUserAdminLevel } from '@/app/actions/super-admin'
 import type { AdminLevel } from '@/lib/auth/roles'
 import { Check, X, Loader2, Pencil, Shield, ShieldCheck, Crown } from 'lucide-react'
+import { UserGroupsCell } from '@/components/admin/UserGroupsCell'
 
 interface User {
   id: string
@@ -19,6 +20,9 @@ interface Props {
   user: User
   currentUserId: string
   canEditRoles: boolean
+  canAssignGroups?: boolean
+  allGroups?: { id: string; name: string }[]
+  userGroupIds?: string[]
 }
 
 function roleLabel(level: string): string {
@@ -27,7 +31,14 @@ function roleLabel(level: string): string {
   return 'Guest'
 }
 
-export function UserRow({ user, currentUserId, canEditRoles }: Props) {
+export function UserRow({
+  user,
+  currentUserId,
+  canEditRoles,
+  canAssignGroups = false,
+  allGroups = [],
+  userGroupIds = [],
+}: Props) {
   const [editing, setEditing] = useState(false)
   const [roomValue, setRoomValue] = useState(user.room_number ?? '')
   const [optimisticRoom, setOptimisticRoom] = useState(user.room_number)
@@ -183,6 +194,10 @@ export function UserRow({ user, currentUserId, canEditRoles }: Props) {
           </span>
         )}
       </td>
+
+      {canAssignGroups && (
+        <UserGroupsCell userId={user.id} allGroups={allGroups} initialGroupIds={userGroupIds} />
+      )}
 
       <td className="px-6 py-4 text-xs text-stone-400 whitespace-nowrap">
         {new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
