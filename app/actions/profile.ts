@@ -32,6 +32,30 @@ export async function updateMyProfile({ fullName, bio, avatarUrl }: UpdateMyProf
   return { success: true }
 }
 
+export async function completeGuestProfile({ fullName, bio, avatarUrl }: UpdateMyProfileInput) {
+  const supabase = createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase.rpc('complete_guest_profile', {
+    p_full_name: fullName,
+    p_avatar_url: avatarUrl ?? '',
+    p_bio: bio ?? '',
+  })
+
+  if (error) {
+    console.error('[profile.completeGuestProfile]', error)
+    throw new Error(error.message)
+  }
+
+  revalidatePath('/')
+  revalidatePath('/profile')
+  revalidatePath('/profile/complete')
+  revalidatePath('/guests')
+  return { success: true }
+}
+
 export interface Guest {
   id: string
   full_name: string | null

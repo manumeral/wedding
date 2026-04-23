@@ -11,13 +11,15 @@ import { countUnreadInbox } from '@/app/actions/broadcasts'
 interface NavbarProps {
   isAdmin?: boolean
   transparent?: boolean
+  /** Logo + sign out only (e.g. mandatory profile completion). */
+  minimalNav?: boolean
   user?: {
     name?: string | null
     avatarUrl?: string | null
   } | null
 }
 
-export function Navbar({ isAdmin = false, transparent = false, user = null }: NavbarProps) {
+export function Navbar({ isAdmin = false, transparent = false, minimalNav = false, user = null }: NavbarProps) {
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
@@ -50,6 +52,29 @@ export function Navbar({ isAdmin = false, transparent = false, user = null }: Na
 
   const textColor = scrolled ? 'text-wine-800' : 'text-white'
   const hoverColor = scrolled ? 'hover:text-wine-600' : 'hover:text-gold-200'
+
+  if (minimalNav) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-40 bg-ivory/95 backdrop-blur-md shadow-soft border-b border-blush-100/60">
+        <div className="container-page flex items-center justify-between py-4">
+          <Link href="/" className="font-script text-2xl sm:text-3xl text-wine-800 transition">
+            P <span className="text-gold-400">&amp;</span> M
+          </Link>
+          {user && (
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 text-sm font-medium text-wine-700 hover:text-wine-900"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </form>
+          )}
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header

@@ -3,7 +3,19 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
-export async function getUserProfile() {
+export type UserProfile = {
+  id: string
+  email: string
+  full_name: string | null
+  bio: string | null
+  avatar_url: string | null
+  admin_level: string
+  room_number: string | null
+  created_at: string
+  profile_completed_at?: string | null
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
   const supabase = createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,7 +28,7 @@ export async function getUserProfile() {
     .single()
 
   if (error) console.error('[getUserProfile]', error.message)
-  return profile
+  return profile as UserProfile | null
 }
 
 export async function signOut() {

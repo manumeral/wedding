@@ -7,6 +7,7 @@ create table public.users (
   avatar_url text,
   admin_level text not null default 'none' check (admin_level in ('none', 'admin', 'super_admin')),
   room_number text,
+  profile_completed_at timestamptz,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -123,8 +124,7 @@ create policy "Admins can update requests." on requests for update using (public
 create policy "Anyone can view events." on events for select using (true);
 create policy "Admins can update events." on events for update using (public.is_admin());
 
--- Self-service profile update (so guests can edit name/bio/avatar but not
--- admin_level / room_number, which would be unsafe to expose via UPDATE policy).
+-- Staff-only self-service profile update (guests use complete_guest_profile once).
 create or replace function public.update_my_profile(
   p_full_name text,
   p_avatar_url text,
@@ -140,6 +140,10 @@ begin
     raise exception 'Not authenticated';
   end if;
 
+  if not public.is_admin() then
+    raise exception 'Guest profiles are saved once via profile completion. Ask an organizer if you need changes.';
+  end if;
+
   update public.users
   set
     full_name  = coalesce(nullif(trim(p_full_name), ''), full_name),
@@ -149,6 +153,63 @@ begin
 end;
 $$;
 grant execute on function public.update_my_profile(text, text, text) to authenticated;
+
+create or replace function public.complete_guest_profile(
+  p_full_name text,
+  p_avatar_url text,
+  p_bio text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_level text;
+  v_done timestamptz;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select admin_level, profile_completed_at into v_level, v_done
+  from public.users
+  where id = auth.uid();
+
+  if v_level is null then
+    raise exception 'Profile not found';
+  end if;
+
+  if v_level in ('admin', 'super_admin') then
+    raise exception 'Staff should use the regular profile editor';
+  end if;
+
+  if v_done is not null then
+    raise exception 'Profile already completed';
+  end if;
+
+  if nullif(trim(p_full_name), '') is null then
+    raise exception 'Name is required';
+  end if;
+
+  if nullif(trim(p_bio), '') is null then
+    raise exception 'A short description is required';
+  end if;
+
+  if nullif(trim(p_avatar_url), '') is null then
+    raise exception 'A profile photo is required';
+  end if;
+
+  update public.users
+  set
+    full_name = trim(p_full_name),
+    bio = trim(p_bio),
+    avatar_url = trim(p_avatar_url),
+    profile_completed_at = timezone('utc', now())
+  where id = auth.uid();
+end;
+$$;
+grant execute on function public.complete_guest_profile(text, text, text) to authenticated;
 
 -- Sanitized guest directory: every authenticated user can see name/avatar/bio
 -- for everyone else, but not email / room / admin_level.

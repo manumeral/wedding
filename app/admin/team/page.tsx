@@ -75,6 +75,7 @@ export default async function AdminTeamPage() {
                       user={u}
                       currentUserId={currentUserId}
                       canEditRoles
+                      canEditGuestProfile
                     />
                   ))}
                 </tbody>

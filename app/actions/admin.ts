@@ -25,7 +25,9 @@ export async function getAllUsers() {
 
   const { data, error } = await supabase
     .from('users')
-    .select('id, email, full_name, room_number, admin_level, created_at')
+    .select(
+      'id, email, full_name, room_number, admin_level, created_at, bio, avatar_url, profile_completed_at'
+    )
     .order('full_name', { ascending: true, nullsFirst: false })
 
   if (error) {
@@ -70,6 +72,40 @@ export async function updateUserName(userId: string, fullName: string) {
   if (error) throw new Error(error.message)
 
   revalidatePath('/admin/users')
+  return { success: true }
+}
+
+export async function updateUserGuestDetails(
+  userId: string,
+  input: { fullName: string; bio: string | null; avatarUrl: string | null }
+) {
+  await assertAdmin()
+  const supabase = createClient()
+
+  const fullName = input.fullName.trim()
+  if (!fullName) throw new Error('Name is required')
+
+  const bioVal = input.bio?.trim() || null
+  const avatarVal = input.avatarUrl?.trim() || null
+  const guestProfileComplete = Boolean(bioVal && avatarVal)
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      full_name: fullName,
+      bio: bioVal,
+      avatar_url: avatarVal,
+      profile_completed_at: guestProfileComplete ? new Date().toISOString() : null,
+    })
+    .eq('id', userId)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/admin/users')
+  revalidatePath('/admin/team')
+  revalidatePath('/guests')
+  revalidatePath('/profile')
+  revalidatePath('/')
   return { success: true }
 }
 

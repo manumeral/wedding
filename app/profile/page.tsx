@@ -1,38 +1,63 @@
 import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel } from '@/lib/auth/roles'
+import { needsGuestProfileCompletion } from '@/lib/auth/profile-completion'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/Navbar'
 import { ProfileForm } from '@/components/profile/ProfileForm'
+import { GuestProfileReadOnly } from '@/components/profile/GuestProfileReadOnly'
 import { Users, KeyRound } from 'lucide-react'
 
 export default async function ProfilePage() {
   const profile = await getUserProfile()
   if (!profile) redirect('/login')
 
+  const staff = isStaffLevel(profile.admin_level)
+  if (
+    !staff &&
+    needsGuestProfileCompletion({
+      admin_level: profile.admin_level,
+      profile_completed_at: profile.profile_completed_at ?? null,
+    })
+  ) {
+    redirect('/profile/complete')
+  }
+
+  const guestLocked = !staff && (profile.profile_completed_at ?? null) != null
+
   return (
     <main className="min-h-screen pb-24">
-      <Navbar isAdmin={isStaffLevel(profile.admin_level)} user={{ name: profile.full_name, avatarUrl: profile.avatar_url }} />
+      <Navbar isAdmin={staff} user={{ name: profile.full_name, avatarUrl: profile.avatar_url }} />
 
       <section className="pt-28 pb-10 bg-gradient-to-b from-cream via-ivory to-ivory">
         <div className="container-page max-w-2xl">
           <p className="section-sub">your profile</p>
           <h1 className="section-title mb-2">A bit about you</h1>
           <p className="text-stone-600 max-w-xl">
-            Add a photo and a short intro so other guests can say hi when they spot you.
+            {guestLocked
+              ? 'How other guests see you in the list.'
+              : 'Update your photo, name, or intro anytime.'}
           </p>
         </div>
       </section>
 
       <section className="container-page max-w-2xl mt-6 space-y-6">
-        <ProfileForm
-          userId={profile.id}
-          initial={{
-            fullName: profile.full_name ?? '',
-            bio: profile.bio ?? null,
-            avatarUrl: profile.avatar_url ?? null,
-          }}
-        />
+        {guestLocked ? (
+          <GuestProfileReadOnly
+            fullName={profile.full_name}
+            bio={profile.bio}
+            avatarUrl={profile.avatar_url}
+          />
+        ) : (
+          <ProfileForm
+            userId={profile.id}
+            initial={{
+              fullName: profile.full_name ?? '',
+              bio: profile.bio ?? null,
+              avatarUrl: profile.avatar_url ?? null,
+            }}
+          />
+        )}
 
         <div className="grid sm:grid-cols-2 gap-3">
           <Link

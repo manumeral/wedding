@@ -6,6 +6,7 @@ import { setUserAdminLevel } from '@/app/actions/super-admin'
 import type { AdminLevel } from '@/lib/auth/roles'
 import { Check, X, Loader2, Pencil, Shield, ShieldCheck, Crown } from 'lucide-react'
 import { UserGroupsCell } from '@/components/admin/UserGroupsCell'
+import { GuestProfileOverride } from '@/components/admin/GuestProfileOverride'
 
 interface User {
   id: string
@@ -14,6 +15,9 @@ interface User {
   room_number: string | null
   admin_level: AdminLevel | string
   created_at: string
+  bio?: string | null
+  avatar_url?: string | null
+  profile_completed_at?: string | null
 }
 
 interface Props {
@@ -23,6 +27,7 @@ interface Props {
   canAssignGroups?: boolean
   allGroups?: { id: string; name: string }[]
   userGroupIds?: string[]
+  canEditGuestProfile?: boolean
 }
 
 function roleLabel(level: string): string {
@@ -38,6 +43,7 @@ export function UserRow({
   canAssignGroups = false,
   allGroups = [],
   userGroupIds = [],
+  canEditGuestProfile = false,
 }: Props) {
   const [editing, setEditing] = useState(false)
   const [roomValue, setRoomValue] = useState(user.room_number ?? '')
@@ -98,6 +104,7 @@ export function UserRow({
               {isSelf && <span className="ml-2 text-xs text-gold-500">(you)</span>}
             </p>
             <p className="text-xs text-stone-500">{user.email}</p>
+            {canEditGuestProfile && <GuestProfileOverride user={user} />}
           </div>
         </div>
       </td>

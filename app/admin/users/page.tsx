@@ -87,6 +87,7 @@ export default async function AdminUsersPage() {
                       canAssignGroups={canAssignGroups}
                       allGroups={allGroups}
                       userGroupIds={assignments[u.id] ?? []}
+                      canEditGuestProfile
                     />
                   ))}
                 </tbody>
