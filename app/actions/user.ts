@@ -15,6 +15,19 @@ export type UserProfile = {
   profile_completed_at?: string | null
 }
 
+/** Creates public.users from auth.users if the signup trigger did not (idempotent). */
+export async function ensureAuthUserProfileRow(): Promise<void> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: existing } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle()
+  if (existing) return
+
+  const { error } = await supabase.rpc('ensure_auth_user_profile')
+  if (error) console.error('[ensureAuthUserProfileRow]', error.message)
+}
+
 export async function getUserProfile(): Promise<UserProfile | null> {
   const supabase = createClient()
 

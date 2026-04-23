@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { needsGuestProfileCompletion } from '@/lib/auth/profile-completion'
+import { guestMustCompleteProfile } from '@/lib/auth/profile-completion'
 
 function profileGateExemptPath(pathname: string) {
   if (pathname.startsWith('/login')) return true
@@ -35,31 +35,43 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
+  const pathname = request.nextUrl.pathname
+
+  if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/auth')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  if (user && request.nextUrl.pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
-  }
-
   if (user) {
-    const pathname = request.nextUrl.pathname
-    const { data: profileRow } = await supabase
+    const profileSelect =
+      'admin_level, profile_completed_at, full_name, bio, avatar_url'
+
+    let { data: profileRow } = await supabase
       .from('users')
-      .select('admin_level, profile_completed_at, full_name, bio, avatar_url')
+      .select(profileSelect)
       .eq('id', user.id)
       .maybeSingle()
 
-    if (profileRow && needsGuestProfileCompletion(profileRow)) {
+    if (!profileRow) {
+      await supabase.rpc('ensure_auth_user_profile')
+      ;({ data: profileRow } = await supabase
+        .from('users')
+        .select(profileSelect)
+        .eq('id', user.id)
+        .maybeSingle())
+    }
+
+    const blocked = guestMustCompleteProfile(profileRow)
+
+    if (pathname === '/login') {
+      const url = request.nextUrl.clone()
+      url.pathname = blocked ? '/profile/complete' : '/'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
+
+    if (blocked) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Complete your guest profile first.' }, { status: 403 })
       }

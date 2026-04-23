@@ -1,6 +1,6 @@
 import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel } from '@/lib/auth/roles'
-import { needsGuestProfileCompletion } from '@/lib/auth/profile-completion'
+import { guestMustCompleteProfile } from '@/lib/auth/profile-completion'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Navbar } from '@/components/Navbar'
@@ -13,7 +13,7 @@ export default async function ProfilePage() {
   if (!profile) redirect('/login')
 
   const staff = isStaffLevel(profile.admin_level)
-  const incomplete = needsGuestProfileCompletion({
+  const incomplete = guestMustCompleteProfile({
     admin_level: profile.admin_level,
     full_name: profile.full_name,
     bio: profile.bio,
