@@ -3,6 +3,17 @@
 **Status:** Draft for implementation planning  
 **Stack:** Next.js 14 App Router, Supabase Auth + Postgres + RLS, Google Drive (photos), existing `events.live_status_message` live tracker.
 
+### User-visible notification requirement (browser / OS)
+
+Organizer-facing messages must reach guests on their **devices via the browser’s push channel**, not only inside the web app:
+
+- **Broadcasts (Phase 2 inbox):** When a super-admin sends a broadcast to selected guest groups, each recipient gets (1) a **durable inbox row** in the app and (2) a **Web Push notification** shown by the **browser/OS** (e.g. Chrome, Safari, Edge, Firefox) wherever **Web Push + notification permission** are supported — the same mechanism as the live tracker.
+- **Live tracker (Phase 6):** When an organizer updates an event’s live status, subscribed guests receive the same kind of **browser/OS Web Push** (plus existing on-page UI).
+
+Implementation uses the **Web Push API** (VAPID keys, service worker, `PushManager`). This is **not** a separate native app; it is the standard way sites deliver “Chrome/Safari notifications.” **iOS Safari** has stricter rules (often requires HTTPS, user gesture for permission, and sometimes home-screen PWA); limitations stay documented for organizers.
+
+**Super-admins only** may create/edit guest groups and **assign guests to groups**; regular admins cannot.
+
 **Delivery order (locked):**
 
 1. Admin levels + super-admin management of admins  
@@ -10,7 +21,7 @@
 3. Photo grouping (aligned with guest groups; super-admin defines groups)  
 4. Optional phone-number onboarding  
 5. Cab pickup/drop beta (super-admin feature flag; structured fields + audit)  
-6. Live tracker updates → device notifications (Web Push)
+6. Web Push infrastructure + live tracker **and** broadcast inbox triggers (browser notifications)
 
 ---
 
@@ -63,39 +74,50 @@ Add `public.is_super_admin()` → `admin_level = 'super_admin'`.
 
 ---
 
-## Phase 2 — Guest group labels + broadcast
+## Phase 2 — Guest group labels + broadcast (inbox)
 
 ### Goal
 
-- Super-admins (and optionally admins — **default: super-admin only** for group CRUD) define **named groups** (e.g. `Bride family`, `Groom friends`, `Outstation`).
-- Each guest belongs to **one or more** groups (many-to-many).
-- **Broadcast:** send a message to **all members of selected groups** (and/or “all guests”).
+- **Super-admins only** create and manage **named groups** (e.g. `Bride family`, `Groom friends`, `Outstation`) and **assign guests to groups** (many-to-many). Regular **admins** do **not** assign groups or edit group definitions.
+- Each guest belongs to **zero or more** groups (many-to-many).
+- **Broadcast v1:** When a super-admin sends a broadcast, **each targeted guest gets an inbox notification** — one row per user, scoped by **that user’s group membership**. Only users who belong to **at least one** of the selected target groups receive an item (union of members across selected groups). Optional “all guests” target = all non-admin users with `admin_level = 'none'`.
 
 ### Data model
 
-- `guest_groups`: `id`, `slug`, `name`, `created_at`, `created_by`
-- `user_guest_groups`: `user_id`, `group_id`, primary key `(user_id, group_id)`
+- `guest_groups`: `id`, `slug`, `name`, `created_at`, `created_by` (super-admin only for writes)
+- `user_guest_groups`: `user_id`, `group_id`, primary key `(user_id, group_id)` — **only super-admins** may insert/update/delete rows (including assigning other users to groups)
 
 RLS:
 
-- All authenticated users can read **names** of groups they belong to (or read all group names if we want directory clarity — **recommend:** guests see only their groups; admins see all).
-- **Insert/update/delete** on `guest_groups` and membership rows for *other* users: **super_admin** only (or admin if you relax later).
-- Users might update **their own** membership only if you want self-service — **default: no**; organizers assign groups.
+- Guests: read **only the groups they belong to** (for labels in UI). Admins (`is_admin()`): read all groups for operational visibility.
+- **All writes** to `guest_groups` and `user_guest_groups`: **`is_super_admin()` only.**
 
-### Broadcast
+### Broadcast + inbox (v1)
 
-**v1 (recommended):** In-app only:
+**Authoring (normalized):**
 
-- `broadcasts` table: `id`, `title`, `body`, `created_by`, `created_at`
-- `broadcast_recipients` or link to group list: store `broadcast_id` + `group_id` (multi-row) or JSON array of group ids (normalized is better).
-- `broadcast_reads` optional (future).
+- `broadcasts`: `id`, `title`, `body`, `created_by`, `created_at`
+- `broadcast_target_groups`: `broadcast_id`, `group_id` (multi-row) — empty set with a dedicated “all guests” flag is **not** needed if we use a nullable sentinel or a separate boolean on `broadcasts` (`targets_all_guests boolean default false`). If `targets_all_guests`, ignore group rows and fan out to every guest.
 
-**Email broadcast (optional v2):** Batch via Supabase Edge Function + Resend/SES or reuse SMTP; rate limits and unsubscribe — out of scope for v1 unless you explicitly want it in the same phase.
+**Delivery (per-user inbox):**
+
+- `user_inbox` (or `broadcast_inbox`): `id`, `user_id`, `broadcast_id`, `read_at timestamptz null`, `created_at`
+- On **send** (server action, super-admin only): compute recipient `user_id` set = union of all users in selected groups (or all guests if `targets_all_guests`), **dedupe**, insert one `user_inbox` row per recipient pointing at `broadcasts.id`.
+- RLS: `select/update` own rows only (`user_id = auth.uid()`); **insert** only via service role or `SECURITY DEFINER` function called from server action (recommended: server uses service role or a definer function `create_broadcast_and_fanout(...)` to avoid huge RLS on insert).
+
+**Reads:** Guest marks read (`read_at = now()`), optional “mark all read.”
+
+**Browser notification (Web Push) — wired in Phase 6, audience matches inbox:**
+
+- The **same recipient set** as the inbox fan-out (union of users in selected groups, or all guests when `targets_all_guests`) should receive a **Web Push** payload: title = broadcast title, body = short preview or full body (length-capped), `data` URL = deep link to `/inbox` (or the specific message).
+- Guests only receive the push if they have **granted notification permission** and registered a **push subscription** (Phase 6). No push is sent to users without a subscription; the **inbox row remains the source of truth** they can always open in-app.
+
+**Email (optional v2):** out of scope for v1.
 
 ### UI
 
-- Super-admin: manage groups, assign guests to groups (on `/admin/users` or dedicated screen).
-- Guest: “Announcements” or home feed card listing broadcasts targeted at their groups.
+- **Super-admin:** manage groups, assign guests to groups (`/admin/users` or dedicated), **compose broadcast** (title, body, multi-select groups and/or “all guests”), send → fan-out creates inbox rows.
+- **Guest:** dedicated **Inbox** page listing notifications (newest first), unread badge in nav; opening an item shows title/body and sets read.
 
 ---
 
@@ -176,16 +198,18 @@ Super-admin sees all photos (bypass RLS or `is_admin()` policy).
 
 ---
 
-## Phase 6 — Live tracker → device notifications (Web Push)
+## Phase 6 — Web Push (Chrome / Safari / Edge / Firefox) for live tracker **and** broadcasts
 
 ### Goal
 
-When an organizer updates `events.live_status_message` (existing `updateEventLiveStatus`), **subscribed guests** receive a **push notification** on supported devices/browsers.
+1. **Live tracker:** When an organizer updates `events.live_status_message` (`updateEventLiveStatus`), **subscribed guests** get a **browser/OS notification** (Web Push) with event name + status text, deep-linking to the itinerary/home.
+2. **Broadcasts:** The super-admin **send broadcast** action (Phase 2) is extended to call the **same push helper** after inbox fan-out, so recipients with subscriptions get a **browser/OS notification** matching their new inbox item.
 
 ### Technology
 
-- **Web Push** (VAPID). Library: `web-push` on server; `service worker` + `PushManager` in browser.
-- **Not** native FCM app unless you later wrap in Capacitor/React Native — out of scope.
+- **Web Push** (VAPID). Server: `web-push` (or equivalent); client: **service worker** + `PushManager.subscribe()`.
+- These are the notifications users associate with **Chrome, Safari, Edge, Firefox** — delivered through the browser’s integration with the OS notification center where supported.
+- **Not** a separate native FCM **mobile app** unless you later wrap the site — out of scope.
 
 ### Data model
 
@@ -196,20 +220,20 @@ When an organizer updates `events.live_status_message` (existing `updateEventLiv
 
 1. Client: user opts in (“Notify me of live updates”) → permission → register SW → subscribe → POST subscription to `/api/push/subscribe` (authenticated).
 2. Server: store subscription; dedupe by `endpoint`.
-3. On `updateEventLiveStatus`: after DB update, call `sendLiveTrackerPush({ eventName, message, eventId })` which:
-   - Loads all subscriptions (or only users in certain groups — **post Phase 2**, optionally restrict to guests who opted in and match broadcast rules).
-   - Sends Web Push payload (title: event name, body: message, data: deep link to `/#itinerary` or `/`).
+3. On `updateEventLiveStatus`: after DB update, call `sendLiveTrackerPush({ eventName, message, eventId })` which loads subscriptions for the chosen audience and sends Web Push (title: event name, body: message, data: deep link to itinerary anchor).
+4. On **broadcast send** (server action from Phase 2): after inserting `user_inbox` rows, call `sendBroadcastPush({ broadcastId, title, body, recipientUserIds })` (or equivalent) so each recipient with a stored subscription gets one browser notification.
 
 ### Product rules (v1)
 
-- **Audience:** all opted-in authenticated users who have a subscription, **or** filter by groups in a later iteration of this phase (hook: “same as broadcast” groups).
-- **Rate limit:** coalesce rapid edits (debounce 30–60s) or max N notifications per event per hour to avoid spam — configurable constant.
+- **Live tracker audience:** default **all guests** with `notifications_enabled` + active `push_subscription`, or the same **group-scoped** rule as broadcasts if you add organizer-only “notify only these groups” later — document the chosen default in the implementation plan.
+- **Broadcast audience:** **exactly** the inbox fan-out set (union of selected groups or all guests); push must not go to users who did not get an inbox row.
+- **Rate limit:** coalesce rapid live-status edits (debounce 30–60s) or cap notifications per event per hour; broadcasts are typically low volume.
 
 ### Platform limits (document for organizers)
 
-- **Android Chrome:** generally works on HTTPS origin.
-- **iOS Safari:** Web Push for web improved in recent versions; **recommend** testing on target devices; PWA “Add to Home Screen” may be required for best results.
-- **Fallback:** in-app banner / email digest remains available (Phase 2 broadcast).
+- **Desktop:** Chrome, Edge, Firefox — Web Push broadly supported on HTTPS.
+- **Android:** Chrome — generally reliable.
+- **iOS Safari:** Web Push support is **conditional** (version, user gesture, sometimes **Add to Home Screen**); test on real devices. Guests who cannot receive Web Push still have **in-app inbox** and the on-site live tracker UI.
 
 ### Env
 
@@ -222,7 +246,7 @@ When an organizer updates `events.live_status_message` (existing `updateEventLiv
 ```text
 Phase 1 (admin levels)
     ↓
-Phase 2 (groups + broadcast) — uses super-admin for group CRUD
+Phase 2 (groups + inbox broadcast) — super-admin only for groups, assignment, and sends
     ↓
 Phase 3 (photos by group) — depends on Phase 2 groups
     ↓
@@ -230,7 +254,7 @@ Phase 4 (phone) — largely independent; can parallelize after Phase 1 if desire
     ↓
 Phase 5 (cab beta) — uses Phase 1 super-admin flag in app_config pattern
     ↓
-Phase 6 (push) — best after Phase 2 for audience filtering; can ship MVP “all subscribers” after Phase 1 only
+Phase 6 (Web Push) — implements subscription UI + sender; hooks **live tracker** and **broadcast send** (inbox) for browser/OS notifications
 ```
 
 **Note:** You asked to process **strictly in order**; Phase 4 is the only one that could be parallelized after Phase 1 without blocking others — the doc keeps linear order unless you later reprioritize.
@@ -249,7 +273,7 @@ Phase 6 (push) — best after Phase 2 for audience filtering; can ship MVP “al
 ## Out of scope (unless added later)
 
 - Native iOS/Android apps.
-- Email broadcast blast (Phase 2 v1 is in-app only).
+- Email as a channel for Phase 2 broadcasts (v1 is **in-app inbox** only).
 - End-to-end encryption of broadcast content.
 
 ---
@@ -260,5 +284,6 @@ Phase 6 (push) — best after Phase 2 for audience filtering; can ship MVP “al
 - [x] Photo visibility tied to Phase 2 groups with a single clear rule (uploader groups + `photo_uploads`).
 - [x] Cab beta gated by super-admin + audit trail specified.
 - [x] Web Push limitations called out for iOS/Safari.
-- [ ] **Open:** Exact broadcast UI surface (dedicated page vs home card) — decide during implementation plan.
-- [ ] **Open:** Whether **admins** (non-super) may assign guests to groups — currently **super-admin only**; say if you want admins to assign read-only.
+- [x] **Broadcast v1:** per-user **inbox** rows targeted by guest group; **browser Web Push** to the same recipients once Phase 6 ships; **super-admins only** create broadcasts and assign groups.
+- [x] **Group assignment:** **super-admins only** (admins cannot assign groups or edit `guest_groups`).
+- [x] **Browser notifications:** Spec explicitly ties **inbox broadcasts** and **live tracker** to Chrome/Safari/Edge/Firefox Web Push (OS notification tray where supported).
