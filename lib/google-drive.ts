@@ -254,6 +254,12 @@ export interface ResumableSessionInput {
   sizeBytes: number
   uploaderId: string
   uploaderName: string
+  /**
+   * Browser origin that will PUT bytes to the returned session URL.
+   * Google binds the resumable session to this origin for CORS — without
+   * it, the browser's PUT is blocked by `Access-Control-Allow-Origin`.
+   */
+  origin: string
 }
 
 export interface ResumableSessionOutput {
@@ -318,6 +324,8 @@ export async function createResumableUploadSession(
         'Content-Type': 'application/json; charset=UTF-8',
         'X-Upload-Content-Type': input.mimeType,
         'X-Upload-Content-Length': String(input.sizeBytes),
+        Origin: input.origin,
+        'X-Origin': input.origin,
       },
       body: JSON.stringify(metadata),
     },

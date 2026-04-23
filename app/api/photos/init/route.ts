@@ -95,6 +95,29 @@ export async function POST(req: Request) {
 
   const correlationId = crypto.randomUUID()
 
+  // Google binds the resumable-session URL to the origin we send here,
+  // so the browser's later PUT must come from the same origin. For
+  // same-origin POSTs the browser always sends `Origin`; we also fall
+  // back to parsing `Referer` just in case.
+  const browserOrigin =
+    req.headers.get('origin') ||
+    (() => {
+      const ref = req.headers.get('referer')
+      if (!ref) return ''
+      try {
+        return new URL(ref).origin
+      } catch {
+        return ''
+      }
+    })()
+
+  if (!browserOrigin) {
+    return NextResponse.json(
+      { error: 'Missing Origin header; please reload the page and try again.' },
+      { status: 400 },
+    )
+  }
+
   try {
     const { sessionUrl } = await createResumableUploadSession({
       filename: sanitizeFilename(filenameRaw),
@@ -102,6 +125,7 @@ export async function POST(req: Request) {
       sizeBytes: Math.floor(sizeBytesRaw),
       uploaderId: user.id,
       uploaderName,
+      origin: browserOrigin,
     })
     return NextResponse.json({ sessionUrl, correlationId })
   } catch (err: any) {
