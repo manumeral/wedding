@@ -1,4 +1,5 @@
 import { getAllUsers } from '@/app/actions/admin'
+import { listGuestGroupAssignments, listGuestGroupsForStaff } from '@/app/actions/groups'
 import { getUserProfile } from '@/app/actions/user'
 import { isSuperAdminLevel, isStaffLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
@@ -13,11 +14,14 @@ export default async function AdminTeamPage() {
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
   if (!isSuperAdminLevel(profile?.admin_level)) redirect('/admin/users')
 
-  const [users, authResult] = await Promise.all([
+  const [users, authResult, guestGroups, assignments] = await Promise.all([
     getAllUsers(),
     createClient().auth.getUser(),
+    listGuestGroupsForStaff(),
+    listGuestGroupAssignments(),
   ])
   const currentUserId = authResult.data.user?.id ?? ''
+  const groupDefs = guestGroups.map((g) => ({ id: g.id, name: g.name }))
 
   return (
     <main className="min-h-screen pb-24">
@@ -65,19 +69,34 @@ export default async function AdminTeamPage() {
                     <th className="px-6 py-3 font-medium">Guest</th>
                     <th className="px-6 py-3 font-medium">Room</th>
                     <th className="px-6 py-3 font-medium">Role</th>
+                    <th className="px-6 py-3 font-medium">
+                      Group labels
+                      <span className="block font-normal normal-case text-stone-400 text-[10px] tracking-normal mt-0.5">
+                        Assign for broadcasts &amp; directory
+                      </span>
+                    </th>
                     <th className="px-6 py-3 font-medium">Joined</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-blush-100">
-                  {users.map((u) => (
-                    <UserRow
-                      key={u.id}
-                      user={u}
-                      currentUserId={currentUserId}
-                      canEditRoles
-                      canEditGuestProfile
-                    />
-                  ))}
+                  {users.map((u) => {
+                    const memberIds = assignments[u.id] ?? []
+                    const chips = groupDefs.filter((g) => memberIds.includes(g.id))
+                    return (
+                      <UserRow
+                        key={u.id}
+                        user={u}
+                        currentUserId={currentUserId}
+                        canEditRoles
+                        canAssignGroups
+                        showGroupLabelsColumn
+                        groupLabelChips={chips}
+                        allGroups={groupDefs}
+                        userGroupIds={memberIds}
+                        canEditGuestProfile
+                      />
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,5 +1,5 @@
 import { getAllUsers } from '@/app/actions/admin'
-import { listGroups, listGuestGroupAssignments } from '@/app/actions/groups'
+import { listGuestGroupAssignments, listGuestGroupsForStaff } from '@/app/actions/groups'
 import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
@@ -13,17 +13,19 @@ export default async function AdminUsersPage() {
   const profile = await getUserProfile()
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
 
+  const staff = isStaffLevel(profile?.admin_level)
   const canAssignGroups = isSuperAdminLevel(profile?.admin_level)
 
-  const [users, authResult, guestGroups, assignments] = await Promise.all([
+  const [users, authResult, guestGroupsForLabels, assignments] = await Promise.all([
     getAllUsers(),
     createClient().auth.getUser(),
-    canAssignGroups ? listGroups() : Promise.resolve([]),
-    canAssignGroups ? listGuestGroupAssignments() : Promise.resolve({} as Record<string, string[]>),
+    staff ? listGuestGroupsForStaff() : Promise.resolve([]),
+    staff ? listGuestGroupAssignments() : Promise.resolve({} as Record<string, string[]>),
   ])
   const currentUserId = authResult.data.user?.id ?? ''
 
-  const allGroups = guestGroups.map((g) => ({ id: g.id, name: g.name }))
+  const groupDefsForChips = guestGroupsForLabels.map((g) => ({ id: g.id, name: g.name }))
+  const allGroups = groupDefsForChips
 
   const totalGuests = users.length
   const assigned = users.filter((u) => u.room_number).length
@@ -73,23 +75,39 @@ export default async function AdminUsersPage() {
                     <th className="px-6 py-3 font-medium">Guest</th>
                     <th className="px-6 py-3 font-medium">Room</th>
                     <th className="px-6 py-3 font-medium">Role</th>
-                    {canAssignGroups && <th className="px-6 py-3 font-medium">Groups</th>}
+                    {staff && (
+                      <th className="px-6 py-3 font-medium">
+                        Group labels
+                        {canAssignGroups ? (
+                          <span className="block font-normal normal-case text-stone-400 text-[10px] tracking-normal mt-0.5">
+                            Super-admin assigns; all staff see
+                          </span>
+                        ) : null}
+                      </th>
+                    )}
                     <th className="px-6 py-3 font-medium">Joined</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-blush-100">
-                  {users.map((u) => (
-                    <UserRow
-                      key={u.id}
-                      user={u}
-                      currentUserId={currentUserId}
-                      canEditRoles={canEditRoles}
-                      canAssignGroups={canAssignGroups}
-                      allGroups={allGroups}
-                      userGroupIds={assignments[u.id] ?? []}
-                      canEditGuestProfile
-                    />
-                  ))}
+                  {users.map((u) => {
+                    const uid = u.id
+                    const memberIds = assignments[uid] ?? []
+                    const chips = groupDefsForChips.filter((g) => memberIds.includes(g.id))
+                    return (
+                      <UserRow
+                        key={uid}
+                        user={u}
+                        currentUserId={currentUserId}
+                        canEditRoles={canEditRoles}
+                        canAssignGroups={canAssignGroups}
+                        showGroupLabelsColumn={staff}
+                        groupLabelChips={chips}
+                        allGroups={allGroups}
+                        userGroupIds={memberIds}
+                        canEditGuestProfile
+                      />
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

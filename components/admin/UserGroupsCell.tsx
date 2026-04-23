@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { setUserGroups } from '@/app/actions/groups'
+import { GuestGroupLabelChips } from '@/components/admin/GuestGroupLabelChips'
 import { ChevronDown, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -56,21 +57,20 @@ export function UserGroupsCell({
     )
   }
 
-  const summary =
-    allGroups
-      .filter((g) => selected.has(g.id))
-      .map((g) => g.name)
-      .join(', ') || '—'
+  const assignedLabels = allGroups.filter((g) => selected.has(g.id))
 
   return (
     <td className="px-6 py-4 align-top">
-      <div className="relative max-w-[14rem]">
+      <div className="relative max-w-[min(22rem,100%)] space-y-2">
+        <GuestGroupLabelChips groups={assignedLabels} />
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center justify-between gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-left text-sm text-wine-800 hover:border-wine-300"
         >
-          <span className="line-clamp-2">{summary}</span>
+          <span className="line-clamp-2 text-stone-600">
+            {assignedLabels.length === 0 ? 'Assign labels…' : 'Edit labels'}
+          </span>
           <ChevronDown className={`w-4 h-4 shrink-0 transition ${open ? 'rotate-180' : ''}`} />
         </button>
         {open && (

@@ -6,6 +6,7 @@ import { setUserAdminLevel } from '@/app/actions/super-admin'
 import type { AdminLevel } from '@/lib/auth/roles'
 import { Check, X, Loader2, Pencil, Shield, ShieldCheck, Crown } from 'lucide-react'
 import { UserGroupsCell } from '@/components/admin/UserGroupsCell'
+import { GuestGroupLabelChips } from '@/components/admin/GuestGroupLabelChips'
 import { GuestProfileOverride } from '@/components/admin/GuestProfileOverride'
 
 interface User {
@@ -25,6 +26,9 @@ interface Props {
   currentUserId: string
   canEditRoles: boolean
   canAssignGroups?: boolean
+  /** Super-admin: edit cell. Other staff: read-only chips from this list. */
+  showGroupLabelsColumn?: boolean
+  groupLabelChips?: { id: string; name: string }[]
   allGroups?: { id: string; name: string }[]
   userGroupIds?: string[]
   canEditGuestProfile?: boolean
@@ -41,6 +45,8 @@ export function UserRow({
   currentUserId,
   canEditRoles,
   canAssignGroups = false,
+  showGroupLabelsColumn = false,
+  groupLabelChips = [],
   allGroups = [],
   userGroupIds = [],
   canEditGuestProfile = false,
@@ -202,9 +208,14 @@ export function UserRow({
         )}
       </td>
 
-      {canAssignGroups && (
-        <UserGroupsCell userId={user.id} allGroups={allGroups} initialGroupIds={userGroupIds} />
-      )}
+      {showGroupLabelsColumn &&
+        (canAssignGroups ? (
+          <UserGroupsCell userId={user.id} allGroups={allGroups} initialGroupIds={userGroupIds} />
+        ) : (
+          <td className="px-6 py-4 align-top">
+            <GuestGroupLabelChips groups={groupLabelChips} />
+          </td>
+        ))}
 
       <td className="px-6 py-4 text-xs text-stone-400 whitespace-nowrap">
         {new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}

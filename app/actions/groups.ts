@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { assertSuperAdmin } from '@/lib/auth/roles'
+import { assertStaff, assertSuperAdmin } from '@/lib/auth/roles'
 
 export type GuestGroup = {
   id: string
@@ -24,6 +24,18 @@ function slugify(input: string): string {
 
 export async function listGroups(): Promise<GuestGroup[]> {
   await assertSuperAdmin()
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('guest_groups')
+    .select('id, slug, name, created_at')
+    .order('name')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as GuestGroup[]
+}
+
+/** Same rows as listGroups; any admin may read labels for the guest directory. */
+export async function listGuestGroupsForStaff(): Promise<GuestGroup[]> {
+  await assertStaff()
   const supabase = createClient()
   const { data, error } = await supabase
     .from('guest_groups')
@@ -80,9 +92,9 @@ export async function setUserGroups(userId: string, groupIds: string[]) {
   return { success: true }
 }
 
-/** user_id -> group_id[] for super-admin guest table */
+/** user_id -> group_id[] (staff read; only super-admin may assign via setUserGroups). */
 export async function listGuestGroupAssignments(): Promise<Record<string, string[]>> {
-  await assertSuperAdmin()
+  await assertStaff()
   const supabase = createClient()
   const { data, error } = await supabase.from('user_guest_groups').select('user_id, group_id')
   if (error) throw new Error(error.message)
