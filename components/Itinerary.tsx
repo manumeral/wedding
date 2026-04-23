@@ -1,6 +1,20 @@
 import Image from 'next/image'
 import { Carousel } from './Carousel'
-import { Calendar, MapPin, Sparkles, Radio, BellRing } from 'lucide-react'
+import { Calendar, MapPin, Sparkles, Radio, BellRing, ExternalLink } from 'lucide-react'
+
+const MAPS_TILAK = 'https://maps.app.goo.gl/PoxeAPXuQ2P6ozaR6'
+const MAPS_CHANAKYA_CLUSTER = 'https://maps.app.goo.gl/frvz2VfDY37JNeCTA'
+const MAPS_RECEPTION = 'https://maps.app.goo.gl/JbmDkeweu9CtZSCa8'
+
+function mapsUrlForEvent(name: string): string | undefined {
+  const n = name.toLowerCase()
+  if (n.includes('tilak')) return MAPS_TILAK
+  if (n.includes('haldi') || n.includes('sangeet') || n.includes('wedding') || n.includes('pheras')) {
+    return MAPS_CHANAKYA_CLUSTER
+  }
+  if (n.includes('reception')) return MAPS_RECEPTION
+  return undefined
+}
 
 interface Event {
   name: string
@@ -8,6 +22,7 @@ interface Event {
   location: string
   live_status_message?: string | null
   order_index?: number
+  mapsUrl?: string
 }
 
 // Visual treatment per event name
@@ -112,6 +127,21 @@ function EventCard({ event }: { event: Event }) {
               <MapPin className="w-4 h-4 mt-0.5 flex-none" />
               <span className={hasImage ? 'text-shadow-soft' : ''}>{event.location}</span>
             </div>
+            {event.mapsUrl && (
+              <a
+                href={event.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-1.5 mt-2 font-medium underline underline-offset-2 decoration-2 ${
+                  hasImage || !darkText
+                    ? 'text-gold-200 decoration-gold-200/60 hover:text-white'
+                    : 'text-wine-700 decoration-wine-300 hover:text-wine-900'
+                }`}
+              >
+                <ExternalLink className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                Open venue in Google Maps
+              </a>
+            )}
           </div>
           {event.live_status_message && (
             <p className={`mt-4 text-sm italic ${hasImage ? 'text-gold-200 text-shadow-soft' : 'text-wine-600'}`}>
@@ -132,14 +162,14 @@ export function Itinerary({ events }: { events: any[] }) {
         location: e.location,
         live_status_message: e.live_status_message,
         order_index: e.order_index ?? i,
+        mapsUrl: mapsUrlForEvent(e.name),
       }))
     : [
-        { name: "Tilak", date: "25 April '26 · Afternoon", location: "Vijaya Grand, Ashiana Nagar, Patna", order_index: 0 },
-        { name: "Haldi", date: "26 April '26 · Afternoon", location: "Chanakya Hotel, R Block, Patna", order_index: 1 },
-        { name: "Sangeet", date: "26 April '26 · Evening", location: "Chanakya Hotel, R Block, Patna", order_index: 2 },
-        { name: "Wedding", date: "27 April '26 · Night", location: "Chanakya Hotel, R Block, Patna", order_index: 3 },
-        { name: "Reception", date: "29 April '26 · Night", location: "Grand Ivory, Biscoman Bhavan, Patna", order_index: 4 },
-        { name: "Reception", date: "2 May '26 · Night", location: "Bokaro Steel City", order_index: 5 },
+        { name: "Tilak", date: "25 April '26 · Afternoon", location: "Vijaya Grand, Ashiana Nagar, Patna", order_index: 0, mapsUrl: MAPS_TILAK },
+        { name: "Haldi", date: "26 April '26 · Afternoon", location: "Chanakya Hotel, R Block, Patna", order_index: 1, mapsUrl: MAPS_CHANAKYA_CLUSTER },
+        { name: "Sangeet", date: "26 April '26 · Evening", location: "Chanakya Hotel, R Block, Patna", order_index: 2, mapsUrl: MAPS_CHANAKYA_CLUSTER },
+        { name: "Wedding", date: "27 April '26 · Night", location: "Chanakya Hotel, R Block, Patna", order_index: 3, mapsUrl: MAPS_CHANAKYA_CLUSTER },
+        { name: "Reception", date: "29 April '26 · Night", location: "Grand Ivory, Biscoman Bhavan, Patna", order_index: 4, mapsUrl: MAPS_RECEPTION },
       ]
 
   const liveEvents = displayEvents.filter(
@@ -158,7 +188,7 @@ export function Itinerary({ events }: { events: any[] }) {
             <span className="h-px w-16 bg-gold-300" />
           </div>
           <p className="text-stone-600 max-w-xl mx-auto">
-            Six days of celebration across two cities. Swipe through to see everything we have in store.
+            Five celebrations in Patna — swipe through the cards. Each venue has a Google Maps link so you can navigate straight there.
           </p>
         </div>
 
