@@ -61,6 +61,8 @@ export interface Guest {
   full_name: string | null
   avatar_url: string | null
   bio: string | null
+  /** Display names of guest groups this user belongs to (empty if none). */
+  group_names: string[]
 }
 
 export async function getGuests(): Promise<Guest[]> {
@@ -71,5 +73,9 @@ export async function getGuests(): Promise<Guest[]> {
     console.error('[profile.getGuests]', error)
     return []
   }
-  return (data ?? []) as Guest[]
+  const rows = (data ?? []) as Guest[]
+  return rows.map((g) => ({
+    ...g,
+    group_names: Array.isArray(g.group_names) ? g.group_names : [],
+  }))
 }

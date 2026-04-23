@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Navbar } from '@/components/Navbar'
 import { Avatar } from '@/components/Avatar'
-import { Users, Pencil, Sparkles } from 'lucide-react'
+import { Users, Pencil, Sparkles, Tag } from 'lucide-react'
 
 export default async function GuestsPage() {
   const profile = await getUserProfile()
@@ -81,6 +81,19 @@ export default async function GuestsPage() {
                         </span>
                       )}
                     </div>
+                    {g.group_names.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                        <Tag className="w-3.5 h-3.5 text-stone-400 shrink-0" aria-hidden />
+                        {g.group_names.map((label, i) => (
+                          <span
+                            key={`${g.id}-grp-${i}`}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blush-50 text-wine-800 border border-blush-100"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {g.bio ? (
                       <p className="text-sm text-stone-600 leading-relaxed">{g.bio}</p>
                     ) : (

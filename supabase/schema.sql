@@ -231,22 +231,6 @@ end;
 $$;
 grant execute on function public.complete_guest_profile(text, text, text) to authenticated;
 
--- Sanitized guest directory: every authenticated user can see name/avatar/bio
--- for everyone else, but not email / room / admin_level.
-create or replace function public.get_guests()
-returns table (id uuid, full_name text, avatar_url text, bio text)
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select id, full_name, avatar_url, bio
-  from public.users
-  where full_name is not null and trim(full_name) <> ''
-  order by full_name;
-$$;
-grant execute on function public.get_guests() to authenticated;
-
 -- Guest groups, broadcasts, inbox (fan-out via create_broadcast_and_fanout only).
 create table public.guest_groups (
   id uuid primary key default gen_random_uuid(),
@@ -343,6 +327,32 @@ create policy "user_guest_groups_delete_super"
   on public.user_guest_groups for delete
   to authenticated
   using (public.is_super_admin());
+
+-- Sanitized guest directory: name/avatar/bio plus assigned group labels (aggregated).
+create or replace function public.get_guests()
+returns table (id uuid, full_name text, avatar_url text, bio text, group_names text[])
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    u.id,
+    u.full_name,
+    u.avatar_url,
+    u.bio,
+    coalesce(
+      array_agg(gg.name order by gg.name) filter (where gg.id is not null),
+      array[]::text[]
+    ) as group_names
+  from public.users u
+  left join public.user_guest_groups ugg on ugg.user_id = u.id
+  left join public.guest_groups gg on gg.id = ugg.group_id
+  where u.full_name is not null and trim(u.full_name) <> ''
+  group by u.id, u.full_name, u.avatar_url, u.bio
+  order by u.full_name;
+$$;
+grant execute on function public.get_guests() to authenticated;
 
 create policy "broadcasts_select_recipient_or_super"
   on public.broadcasts for select
