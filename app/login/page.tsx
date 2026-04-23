@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Mail, KeyRound, Loader2 } from 'lucide-react'
+import { requestMagicLink } from './actions'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -13,7 +13,6 @@ function LoginForm() {
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
   const [loading, setLoading] = useState(false)
-  const supabase = createClient()
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -30,15 +29,10 @@ function LoginForm() {
     setMessage('')
     setIsError(false)
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${location.origin}/auth/confirm`,
-      },
-    })
+    const result = await requestMagicLink(email, `${location.origin}/auth/confirm`)
 
-    if (error) {
-      setMessage(error.message)
+    if (!result.ok) {
+      setMessage(result.error ?? 'Something went wrong. Please try again.')
       setIsError(true)
     } else {
       setMessage('Check your email! Click the magic link, or enter the code below.')
