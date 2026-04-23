@@ -1,5 +1,3 @@
-import Image from 'next/image'
-
 interface HeroProps {
   name?: string | null
 }
@@ -7,17 +5,8 @@ interface HeroProps {
 export function Hero({ name }: HeroProps) {
   return (
     <section className="relative w-full min-h-[88vh] flex items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="/images/couple-hero.png"
-          alt="Prachi and Mayank"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-[center_20%]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/75" />
-      </div>
+      {/* Page-level fixed background shows through; darken for legibility */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/42 via-black/48 to-black/78" aria-hidden />
 
       <div className="relative z-10 text-center px-6 py-10 max-w-3xl animate-fade-up">
         <p className="font-script text-3xl sm:text-4xl text-gold-200 text-shadow-soft mb-3">

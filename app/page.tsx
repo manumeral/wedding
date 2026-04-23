@@ -21,7 +21,21 @@ export default async function Home() {
   const previewGuests = guests.filter((g) => g.id !== profile?.id).slice(0, 4)
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen relative">
+      <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>
+        <Image
+          src="/images/palace-couple-night.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          quality={90}
+          className="object-cover object-[center_25%] sm:object-[center_30%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-ivory/45 via-ivory/60 to-ivory/78" />
+      </div>
+
+      <div className="relative z-10">
       <Navbar
         isAdmin={isStaffLevel(profile?.admin_level)}
         transparent
@@ -31,10 +45,7 @@ export default async function Home() {
       <Hero name={firstName} />
 
       {/* Welcome + Room Allocation */}
-      <section className="relative py-20 bg-gradient-to-b from-ivory via-cream to-ivory">
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none">
-          <Image src="/images/wedding-illustration.png" alt="" fill className="object-cover" />
-        </div>
+      <section className="relative py-20 bg-ivory/68 backdrop-blur-[2px] border-t border-white/30">
         <div className="container-page relative">
           <div className="grid md:grid-cols-2 gap-8 items-stretch">
             <div className="card p-8 md:p-10 animate-fade-up">
@@ -77,8 +88,14 @@ export default async function Home() {
 
             <div className="relative rounded-3xl overflow-hidden shadow-soft-lg animate-fade-up">
               <div className="absolute inset-0 bg-gradient-to-br from-wine-700 via-wine-800 to-wine-800" />
-              <div className="absolute inset-0 opacity-30">
-                <Image src="/images/couple-hero.png" alt="" fill className="object-cover object-top mask-fade-b" />
+              <div className="absolute inset-0 opacity-35">
+                <Image
+                  src="/images/palace-couple-night.png"
+                  alt=""
+                  fill
+                  className="object-cover object-[center_20%] mask-fade-b"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
               </div>
               <div className="relative p-8 md:p-10 text-ivory h-full flex flex-col justify-between min-h-[240px]">
                 <div className="flex items-center gap-2 text-gold-300">
@@ -114,16 +131,16 @@ export default async function Home() {
       <Itinerary events={events} />
 
       {/* Our Story */}
-      <section className="relative py-20 bg-gradient-to-br from-blush-50 via-cream to-gold-100 overflow-hidden">
+      <section className="relative py-20 bg-gradient-to-br from-blush-50/85 via-cream/80 to-gold-100/85 backdrop-blur-sm overflow-hidden border-y border-white/35">
         <div className="container-page relative">
           <div className="grid md:grid-cols-2 gap-10 items-center">
-            <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-soft-lg">
+            <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-soft-lg ring-1 ring-white/50">
               <Image
-                src="/images/wedding-illustration.png"
-                alt="Prachi and Mayank illustration"
+                src="/images/palace-couple-night.png"
+                alt="Prachi and Mayank"
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover"
+                className="object-cover object-[center_30%]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-wine-800/40 via-transparent to-transparent" />
             </div>
@@ -149,7 +166,7 @@ export default async function Home() {
       </section>
 
       {/* Quick actions carousel (mobile-first) */}
-      <section className="py-16 bg-ivory">
+      <section className="py-16 bg-ivory/70 backdrop-blur-sm border-t border-white/25">
         <div className="container-page">
           <div className="text-center mb-10">
             <p className="section-sub">before you go</p>
@@ -215,8 +232,14 @@ export default async function Home() {
 
       {/* Footer */}
       <footer className="relative bg-wine-800 text-ivory py-14 overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <Image src="/images/couple-hero.png" alt="" fill className="object-cover object-top" />
+        <div className="absolute inset-0 opacity-25">
+          <Image
+            src="/images/palace-couple-night.png"
+            alt=""
+            fill
+            className="object-cover object-[center_20%]"
+            sizes="100vw"
+          />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-wine-800 via-wine-800/90 to-wine-800/70" />
         <div className="container-page relative text-center">
@@ -232,6 +255,7 @@ export default async function Home() {
           </p>
         </div>
       </footer>
+      </div>
     </main>
   )
 }

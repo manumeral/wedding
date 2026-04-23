@@ -38,10 +38,10 @@ const eventTheme = (name: string) => {
   }
   if (n.includes('wedding') || n.includes('pheras')) {
     return {
-      image: '/images/wedding-illustration.png',
+      image: '/images/palace-couple-night.png',
       bg: 'from-blush-100 via-blush-200 to-wine-500',
       accent: 'text-wine-700',
-      imgFit: 'object-cover object-[center_30%]',
+      imgFit: 'object-cover object-[center_35%]',
     }
   }
   if (n.includes('sangeet')) {
@@ -177,8 +177,8 @@ export function Itinerary({ events }: { events: any[] }) {
   )
 
   return (
-    <section id="itinerary" className="py-20 scroll-mt-20">
-      <div className="container-page">
+    <section id="itinerary" className="relative py-20 scroll-mt-20 bg-ivory/72 backdrop-blur-sm border-y border-white/40">
+      <div className="container-page relative">
         <div className="text-center mb-8">
           <p className="section-sub">save the dates</p>
           <h2 className="section-title">Wedding Itinerary</h2>
