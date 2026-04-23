@@ -124,8 +124,14 @@ export default async function PhotosPage() {
             <div className="mb-4">
               <h2 className="font-serif text-2xl text-wine-700">Everyone&rsquo;s moments</h2>
               <p className="text-sm text-stone-500">
-                Tap any picture to see it full-size. New uploads appear here after a refresh.
+                Tap any thumbnail to open it full size (including videos). New uploads appear after a refresh.
               </p>
+              {isAdmin && (
+                <p className="text-xs text-stone-500 mt-2">
+                  As an organizer, you can remove any item with the trash control — it is deleted from
+                  Google Drive and dropped from the guest-facing gallery.
+                </p>
+              )}
             </div>
 
             {album.error && (

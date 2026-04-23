@@ -14,6 +14,9 @@ export default async function ProfileCompletePage() {
   if (
     !needsGuestProfileCompletion({
       admin_level: profile.admin_level,
+      full_name: profile.full_name,
+      bio: profile.bio,
+      avatar_url: profile.avatar_url,
       profile_completed_at: profile.profile_completed_at,
     })
   ) {

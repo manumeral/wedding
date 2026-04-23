@@ -55,7 +55,7 @@ export async function updateSession(request: NextRequest) {
     const pathname = request.nextUrl.pathname
     const { data: profileRow } = await supabase
       .from('users')
-      .select('admin_level, profile_completed_at')
+      .select('admin_level, profile_completed_at, full_name, bio, avatar_url')
       .eq('id', user.id)
       .maybeSingle()
 

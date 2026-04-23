@@ -172,14 +172,24 @@ as $$
 declare
   v_level text;
   v_done timestamptz;
+  v_full_name text;
+  v_bio text;
+  v_avatar text;
+  v_satisfied boolean;
 begin
   if auth.uid() is null then
     raise exception 'Not authenticated';
   end if;
 
-  select admin_level, profile_completed_at into v_level, v_done
-  from public.users
-  where id = auth.uid();
+  select
+    u.admin_level,
+    u.profile_completed_at,
+    u.full_name,
+    u.bio,
+    u.avatar_url
+  into v_level, v_done, v_full_name, v_bio, v_avatar
+  from public.users u
+  where u.id = auth.uid();
 
   if v_level is null then
     raise exception 'Profile not found';
@@ -189,7 +199,12 @@ begin
     raise exception 'Staff should use the regular profile editor';
   end if;
 
-  if v_done is not null then
+  v_satisfied :=
+    nullif(trim(v_full_name), '') is not null
+    and nullif(trim(v_bio), '') is not null
+    and nullif(trim(v_avatar), '') is not null;
+
+  if v_satisfied and v_done is not null then
     raise exception 'Profile already completed';
   end if;
 

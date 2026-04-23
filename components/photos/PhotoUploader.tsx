@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, ImagePlus, Loader2, Check, AlertTriangle, X } from 'lucide-react'
+import { Camera, ImagePlus, Loader2, Check, AlertTriangle, X, Film } from 'lucide-react'
 
 interface QueueItem {
   id: string
@@ -154,54 +154,78 @@ async function uploadWithProgress(
   await registerUpload(driveFileId, correlationId)
 }
 
+function isAllowedMedia(file: File): boolean {
+  return file.type.startsWith('image/') || file.type.startsWith('video/')
+}
+
 export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
   const router = useRouter()
   const pickerRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
+  const videoCaptureRef = useRef<HTMLInputElement>(null)
+  const uploadTailRef = useRef(Promise.resolve())
+  const activeBatchesRef = useRef(0)
 
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [busy, setBusy] = useState(false)
 
+  const runItems = useCallback(
+    async (items: QueueItem[]) => {
+      activeBatchesRef.current += 1
+      setBusy(true)
+      let anySucceeded = false
+      try {
+        for (const item of items) {
+          setQueue((q) =>
+            q.map((x) => (x.id === item.id ? { ...x, status: 'uploading', progress: 0 } : x)),
+          )
+          try {
+            await uploadWithProgress(item.file, (pct) => {
+              setQueue((q) => q.map((x) => (x.id === item.id ? { ...x, progress: pct } : x)))
+            })
+            setQueue((q) =>
+              q.map((x) => (x.id === item.id ? { ...x, status: 'done', progress: 100 } : x)),
+            )
+            anySucceeded = true
+          } catch (e: any) {
+            setQueue((q) =>
+              q.map((x) =>
+                x.id === item.id ? { ...x, status: 'error', error: e.message ?? 'Failed' } : x,
+              ),
+            )
+          }
+        }
+        if (anySucceeded) router.refresh()
+      } finally {
+        activeBatchesRef.current -= 1
+        if (activeBatchesRef.current <= 0) {
+          activeBatchesRef.current = 0
+          setBusy(false)
+        }
+      }
+    },
+    [router],
+  )
+
   const enqueue = (files: FileList | null) => {
     if (!files || files.length === 0) return
-    const items: QueueItem[] = Array.from(files).map((f) => ({
-      id: `${f.name}-${f.size}-${f.lastModified}-${Math.random().toString(36).slice(2, 7)}`,
+    const raw = Array.from(files)
+    const allowed = raw.filter(isAllowedMedia)
+    const skipped = raw.length - allowed.length
+    if (skipped > 0) {
+      alert(`Skipped ${skipped} file(s). Only photos and videos can be uploaded.`)
+    }
+    if (allowed.length === 0) return
+
+    const items: QueueItem[] = allowed.map((f) => ({
+      id: `${f.name}-${f.size}-${f.lastModified}-${Math.random().toString(36).slice(2, 9)}`,
       file: f,
       status: 'queued',
       progress: 0,
       previewUrl: f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined,
     }))
     setQueue((q) => [...items, ...q])
-    void runQueue(items)
-  }
-
-  const runQueue = async (items: QueueItem[]) => {
-    setBusy(true)
-    let anySucceeded = false
-
-    for (const item of items) {
-      setQueue((q) =>
-        q.map((x) => (x.id === item.id ? { ...x, status: 'uploading', progress: 0 } : x))
-      )
-      try {
-        await uploadWithProgress(item.file, (pct) => {
-          setQueue((q) => q.map((x) => (x.id === item.id ? { ...x, progress: pct } : x)))
-        })
-        setQueue((q) =>
-          q.map((x) => (x.id === item.id ? { ...x, status: 'done', progress: 100 } : x))
-        )
-        anySucceeded = true
-      } catch (e: any) {
-        setQueue((q) =>
-          q.map((x) =>
-            x.id === item.id ? { ...x, status: 'error', error: e.message ?? 'Failed' } : x
-          )
-        )
-      }
-    }
-
-    setBusy(false)
-    if (anySucceeded) router.refresh()
+    uploadTailRef.current = uploadTailRef.current.then(() => runItems(items))
   }
 
   const dismiss = (id: string) => {
@@ -215,16 +239,17 @@ export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
   const retry = (id: string) => {
     const item = queue.find((x) => x.id === id)
     if (!item) return
-    void runQueue([item])
+    uploadTailRef.current = uploadTailRef.current.then(() => runItems([item]))
   }
 
   return (
     <div className="card p-6 sm:p-7">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
-          <h3 className="font-serif text-2xl text-wine-700">Share a photo</h3>
+          <h3 className="font-serif text-2xl text-wine-700">Share photos &amp; videos</h3>
           <p className="text-sm text-stone-500 mt-0.5">
-            Your uploads go straight into the shared Drive album.
+            Take new media or choose <strong className="font-medium text-stone-600">multiple</strong> files
+            from your device. Everything goes into the shared Drive album.
           </p>
         </div>
         {busy && (
@@ -235,7 +260,7 @@ export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
         )}
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button
           type="button"
           onClick={() => cameraRef.current?.click()}
@@ -247,7 +272,22 @@ export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
           </div>
           <div>
             <p className="font-serif text-lg text-wine-700">Take a photo</p>
-            <p className="text-xs text-stone-500">Uses your phone&rsquo;s camera</p>
+            <p className="text-xs text-stone-500">Camera still image</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => videoCaptureRef.current?.click()}
+          disabled={disabled}
+          className="group card p-5 flex items-center gap-4 text-left hover:shadow-soft-lg hover:-translate-y-0.5 transition disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-stone-700 to-wine-900 flex items-center justify-center text-gold-200">
+            <Film className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="font-serif text-lg text-wine-700">Record a video</p>
+            <p className="text-xs text-stone-500">Camera video where supported</p>
           </div>
         </button>
 
@@ -261,8 +301,8 @@ export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
             <ImagePlus className="w-6 h-6" />
           </div>
           <div>
-            <p className="font-serif text-lg text-wine-700">Upload from device</p>
-            <p className="text-xs text-stone-500">Photos or videos from your device</p>
+            <p className="font-serif text-lg text-wine-700">From your library</p>
+            <p className="text-xs text-stone-500">Multi-select photos &amp; videos</p>
           </div>
         </button>
       </div>
@@ -272,6 +312,17 @@ export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
         ref={cameraRef}
         type="file"
         accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          enqueue(e.target.files)
+          e.target.value = ''
+        }}
+      />
+      <input
+        ref={videoCaptureRef}
+        type="file"
+        accept="video/*"
         capture="environment"
         className="hidden"
         onChange={(e) => {
@@ -312,6 +363,8 @@ export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
                     alt={item.file.name}
                     className="w-full h-full object-cover"
                   />
+                ) : item.file.type.startsWith('video/') ? (
+                  <Film className="w-5 h-5 text-wine-600" />
                 ) : (
                   <ImagePlus className="w-5 h-5 text-stone-400" />
                 )}

@@ -13,17 +13,18 @@ export default async function ProfilePage() {
   if (!profile) redirect('/login')
 
   const staff = isStaffLevel(profile.admin_level)
-  if (
-    !staff &&
-    needsGuestProfileCompletion({
-      admin_level: profile.admin_level,
-      profile_completed_at: profile.profile_completed_at ?? null,
-    })
-  ) {
+  const incomplete = needsGuestProfileCompletion({
+    admin_level: profile.admin_level,
+    full_name: profile.full_name,
+    bio: profile.bio,
+    avatar_url: profile.avatar_url,
+    profile_completed_at: profile.profile_completed_at ?? null,
+  })
+  if (!staff && incomplete) {
     redirect('/profile/complete')
   }
 
-  const guestLocked = !staff && (profile.profile_completed_at ?? null) != null
+  const guestLocked = !staff && !incomplete
 
   return (
     <main className="min-h-screen pb-24">
