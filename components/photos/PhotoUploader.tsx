@@ -19,16 +19,36 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function uploadWithProgress(
-  file: File,
-  onProgress: (pct: number) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const form = new FormData()
-    form.append('file', file)
+async function initSession(file: File): Promise<{ sessionUrl: string; correlationId: string }> {
+  const res = await fetch('/api/photos/init', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filename: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      sizeBytes: file.size,
+    }),
+  })
+  if (!res.ok) {
+    let msg = `Could not start upload (${res.status})`
+    try {
+      const body = await res.json()
+      if (body?.error) msg = body.error
+    } catch {}
+    throw new Error(msg)
+  }
+  return res.json()
+}
 
+function putToDriveWithProgress(
+  sessionUrl: string,
+  file: File,
+  onProgress: (pct: number) => void,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', '/api/photos/upload')
+    xhr.open('PUT', sessionUrl)
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
 
     xhr.upload.addEventListener('progress', (ev) => {
       if (ev.lengthComputable) {
@@ -38,22 +58,49 @@ function uploadWithProgress(
 
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve()
-      } else {
-        let message = `Upload failed (${xhr.status})`
         try {
           const body = JSON.parse(xhr.responseText)
-          if (body?.error) message = body.error
+          if (body?.id) {
+            resolve(body.id)
+            return
+          }
         } catch {}
-        reject(new Error(message))
+        reject(new Error('Drive returned an unexpected response.'))
+        return
       }
+      reject(new Error(`Drive rejected the upload (${xhr.status}).`))
     })
 
-    xhr.addEventListener('error', () => reject(new Error('Network error')))
-    xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')))
+    xhr.addEventListener('error', () => reject(new Error('Network error during upload.')))
+    xhr.addEventListener('abort', () => reject(new Error('Upload cancelled.')))
 
-    xhr.send(form)
+    xhr.send(file)
   })
+}
+
+async function registerUpload(driveFileId: string, correlationId: string): Promise<void> {
+  const res = await fetch('/api/photos/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ driveFileId, correlationId }),
+  })
+  if (!res.ok) {
+    let msg = `Could not finalize upload (${res.status})`
+    try {
+      const body = await res.json()
+      if (body?.error) msg = body.error
+    } catch {}
+    throw new Error(msg)
+  }
+}
+
+async function uploadWithProgress(
+  file: File,
+  onProgress: (pct: number) => void,
+): Promise<void> {
+  const { sessionUrl, correlationId } = await initSession(file)
+  const driveFileId = await putToDriveWithProgress(sessionUrl, file, onProgress)
+  await registerUpload(driveFileId, correlationId)
 }
 
 export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
@@ -164,7 +211,7 @@ export function PhotoUploader({ disabled = false }: { disabled?: boolean }) {
           </div>
           <div>
             <p className="font-serif text-lg text-wine-700">Upload from device</p>
-            <p className="text-xs text-stone-500">Photos or videos, up to 50 MB each</p>
+            <p className="text-xs text-stone-500">Photos or videos from your device</p>
           </div>
         </button>
       </div>
