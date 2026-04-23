@@ -1,6 +1,5 @@
 import { google, drive_v3 } from 'googleapis'
 import { OAuth2Client } from 'google-auth-library'
-import { Readable } from 'stream'
 import { readConfig, writeConfig } from '@/lib/supabase/admin'
 
 // ---------- Types ----------
@@ -25,8 +24,6 @@ export interface ListResult {
   nextPageToken: string | null
   folderUrl: string
 }
-
-export interface UploadedFile extends AlbumFile {}
 
 export type ConnectionStatus =
   | { state: 'env_missing'; missing: string[] }
@@ -241,69 +238,6 @@ export async function listAlbum({
       nextPageToken: res.data.nextPageToken ?? null,
       folderUrl: folderUrl(env.folderId),
     }
-  } catch (err) {
-    if (isAuthError(err)) {
-      throw new DriveAuthError('Google connection has expired. An organizer needs to reconnect.')
-    }
-    throw err
-  }
-}
-
-interface UploadInput {
-  filename: string
-  mimeType: string
-  buffer: Buffer
-  uploaderId: string
-  uploaderName: string
-}
-
-export async function uploadToAlbum(input: UploadInput): Promise<UploadedFile> {
-  const ctx = await getDrive()
-  if (!ctx) {
-    throw new DriveNotConnectedError(
-      'The shared album isn\u2019t connected yet. Ask an organizer to finish the Drive setup.'
-    )
-  }
-
-  const { drive, env } = ctx
-
-  try {
-    const created = await drive.files.create({
-      requestBody: {
-        name: input.filename,
-        parents: [env.folderId],
-        mimeType: input.mimeType,
-        appProperties: {
-          uploaderUserId: input.uploaderId,
-          uploaderName: input.uploaderName.slice(0, 100),
-          app: 'wedding',
-        },
-      },
-      media: {
-        mimeType: input.mimeType,
-        body: Readable.from(input.buffer),
-      },
-      fields:
-        'id, name, mimeType, createdTime, size, thumbnailLink, webViewLink, appProperties',
-      supportsAllDrives: true,
-    })
-
-    const fileId = created.data.id
-    if (!fileId) throw new Error('Drive did not return a file id')
-
-    // Public "anyone with link" permission so <img> tags can fetch the
-    // thumbnail without an auth header.
-    try {
-      await drive.permissions.create({
-        fileId,
-        requestBody: { role: 'reader', type: 'anyone' },
-        supportsAllDrives: true,
-      })
-    } catch (err) {
-      console.warn('[drive.uploadToAlbum] permissions.create failed', fileId, err)
-    }
-
-    return toAlbumFile(created.data)
   } catch (err) {
     if (isAuthError(err)) {
       throw new DriveAuthError('Google connection has expired. An organizer needs to reconnect.')
