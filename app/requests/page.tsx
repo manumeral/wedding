@@ -1,13 +1,14 @@
-import { submitRequest, getMyRequests } from '@/app/actions/requests'
+import { getMyRequests } from '@/app/actions/requests'
 import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel } from '@/lib/auth/roles'
 import { Navbar } from '@/components/Navbar'
-import { Car, Plane, GlassWater, HelpCircle, Clock, CheckCircle2, UserCheck } from 'lucide-react'
+import { RequestForm } from '@/components/requests/RequestForm'
+import { Car, Plane, GlassWater, HelpCircle, Clock, CheckCircle2, UserCheck, MapPin } from 'lucide-react'
 import Image from 'next/image'
 
 const typeMeta: Record<string, { label: string; icon: any; color: string }> = {
   cab: { label: 'Cab / Transport', icon: Car, color: 'from-blush-200 to-blush-300' },
-  pickup: { label: 'Airport / Station', icon: Plane, color: 'from-gold-200 to-gold-400' },
+  pickup: { label: 'Airport / Railway', icon: Plane, color: 'from-gold-200 to-gold-400' },
   water: { label: 'Water / Refreshments', icon: GlassWater, color: 'from-cyan-100 to-cyan-200' },
   other: { label: 'Something else', icon: HelpCircle, color: 'from-stone-200 to-stone-300' },
 }
@@ -42,51 +43,7 @@ export default async function RequestsPage() {
       </section>
 
       <div className="container-page max-w-2xl mt-10 space-y-10">
-        {/* New request form */}
-        <section className="card p-8">
-          <h2 className="font-serif text-2xl text-wine-700 mb-6">Need something?</h2>
-          <form action={submitRequest} className="space-y-5">
-            <div>
-              <label className="block text-xs font-medium text-stone-500 uppercase tracking-wider mb-2">
-                Type of request
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(typeMeta).map(([key, meta]) => {
-                  const Icon = meta.icon
-                  return (
-                    <label
-                      key={key}
-                      className="group relative flex items-center gap-3 p-3.5 rounded-xl border-2 border-blush-100 hover:border-wine-500 cursor-pointer transition bg-ivory has-[:checked]:border-wine-700 has-[:checked]:bg-blush-50"
-                    >
-                      <input type="radio" name="type" value={key} defaultChecked={key === 'cab'} className="sr-only peer" required />
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${meta.color} flex items-center justify-center text-wine-700`}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <span className="text-sm font-medium text-stone-700 peer-checked:text-wine-700">{meta.label}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="details" className="block text-xs font-medium text-stone-500 uppercase tracking-wider mb-2">
-                Additional details
-              </label>
-              <textarea
-                id="details"
-                name="details"
-                rows={3}
-                className="w-full px-4 py-3 rounded-xl border border-blush-200 bg-white focus:ring-2 focus:ring-wine-500 focus:border-wine-500 outline-none transition resize-none"
-                placeholder="E.g., I'm at Patna Junction platform 1, family of 4, arriving at 3pm."
-              />
-            </div>
-
-            <button type="submit" className="btn-primary w-full">
-              Send Request
-            </button>
-          </form>
-        </section>
+        <RequestForm />
 
         {/* History */}
         <section>
@@ -116,8 +73,49 @@ export default async function RequestsPage() {
                           {status.label}
                         </span>
                       </div>
+                      {(req.type === 'cab' || req.type === 'pickup') &&
+                        (req.pickup_at || req.pickup_location || req.dropoff_location) && (
+                          <ul className="text-xs text-stone-600 mt-2 space-y-1 border-l-2 border-gold-300/80 pl-3">
+                            {req.hub_kind && (
+                              <li className="font-medium text-wine-700">
+                                {req.hub_kind === 'airport' ? 'Airport' : 'Railway station'}
+                              </li>
+                            )}
+                            {req.pickup_at && (
+                              <li>
+                                {req.type === 'cab' ? 'Pickup' : 'Arrival'}:{' '}
+                                {new Date(req.pickup_at).toLocaleString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}
+                              </li>
+                            )}
+                            {req.pickup_location && (
+                              <li className="flex gap-1">
+                                <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span>From: {req.pickup_location}</span>
+                              </li>
+                            )}
+                            {req.dropoff_location && (
+                              <li>To: {req.dropoff_location}</li>
+                            )}
+                            {req.dropoff_at && (
+                              <li>
+                                Drop-off by:{' '}
+                                {new Date(req.dropoff_at).toLocaleString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}
+                              </li>
+                            )}
+                          </ul>
+                        )}
                       {req.details && (
-                        <p className="text-sm text-stone-600 mt-1 line-clamp-2">{req.details}</p>
+                        <p className="text-sm text-stone-600 mt-2 line-clamp-3">{req.details}</p>
                       )}
                       <p className="text-xs text-stone-400 mt-2">
                         {new Date(req.created_at).toLocaleString('en-IN', {

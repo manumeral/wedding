@@ -4,7 +4,7 @@ import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
-import { Clock, UserCheck, CheckCircle2, Car, Plane, GlassWater, HelpCircle, Inbox } from 'lucide-react'
+import { Clock, UserCheck, CheckCircle2, Car, Plane, GlassWater, HelpCircle, Inbox, MapPin } from 'lucide-react'
 
 const typeIcon: Record<string, any> = { cab: Car, pickup: Plane, water: GlassWater, other: HelpCircle }
 const statusStyle: Record<string, string> = {
@@ -100,8 +100,53 @@ export default async function AdminPage() {
                             <span className="capitalize">{req.type}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 max-w-xs">
-                          <p className="truncate text-stone-600" title={req.details}>{req.details || '—'}</p>
+                        <td className="px-6 py-4 max-w-md">
+                          {(req.type === 'cab' || req.type === 'pickup') &&
+                          (req.pickup_at || req.pickup_location || req.dropoff_location) ? (
+                            <div className="text-xs text-stone-600 space-y-1.5">
+                              {req.hub_kind && (
+                                <p className="font-semibold text-wine-700">
+                                  {req.hub_kind === 'airport' ? 'Airport' : 'Railway'}
+                                </p>
+                              )}
+                              {req.pickup_at && (
+                                <p>
+                                  <span className="text-stone-400">{req.type === 'cab' ? 'Pickup' : 'Arrival'}: </span>
+                                  {new Date(req.pickup_at).toLocaleString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                              )}
+                              {req.pickup_location && (
+                                <p className="flex gap-1 items-start">
+                                  <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                  <span>From: {req.pickup_location}</span>
+                                </p>
+                              )}
+                              {req.dropoff_location && <p>To: {req.dropoff_location}</p>}
+                              {req.dropoff_at && (
+                                <p>
+                                  <span className="text-stone-400">Drop-off: </span>
+                                  {new Date(req.dropoff_at).toLocaleString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                              )}
+                              {req.details && (
+                                <p className="text-stone-500 pt-1 mt-1 border-t border-blush-100">{req.details}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="truncate text-stone-600" title={req.details}>
+                              {req.details || '—'}
+                            </p>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border capitalize ${statusStyle[req.status]}`}>

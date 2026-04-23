@@ -19,6 +19,11 @@ create table public.requests (
   status text not null default 'pending' check (status in ('pending', 'claimed', 'resolved')),
   assigned_admin_id uuid references public.users on delete set null,
   details text,
+  pickup_at timestamptz,
+  pickup_location text,
+  dropoff_at timestamptz,
+  dropoff_location text,
+  hub_kind text check (hub_kind is null or hub_kind in ('airport', 'railway')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
