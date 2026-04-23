@@ -101,7 +101,7 @@ set search_path = public
 as $$
 begin
   if tg_op = 'UPDATE' and new.admin_level is distinct from old.admin_level then
-    if not public.is_super_admin() then
+    if auth.uid() is not null and not public.is_super_admin() then
       raise exception 'Only super-admins can change admin_level';
     end if;
   end if;
