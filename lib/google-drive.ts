@@ -348,6 +348,23 @@ export async function makeFilePublic(fileId: string): Promise<void> {
   }
 }
 
+/** Permanently removes a file from the shared album folder (organizer action). */
+export async function deleteDriveFile(fileId: string): Promise<void> {
+  const ctx = await getDrive()
+  if (!ctx) {
+    throw new DriveNotConnectedError('Google Drive is not connected.')
+  }
+  const { drive } = ctx
+  try {
+    await drive.files.delete({ fileId, supportsAllDrives: true })
+  } catch (err: any) {
+    if (isAuthError(err)) {
+      throw new DriveAuthError('Google connection has expired.')
+    }
+    throw err
+  }
+}
+
 // ---------- Errors ----------
 
 export class DriveNotConnectedError extends Error {

@@ -10,16 +10,18 @@ Make the wedding website publicly available at `https://prachiwedsmayank.in`, wi
 
 ## Constraints and decisions
 
-| Area | Decision | Rationale |
-|---|---|---|
-| Hosting | Vercel Hobby | Already deployed; Next.js 14 first-class support; free |
-| Domain | `prachiwedsmayank.in` registered at GoDaddy | Already purchased |
-| DNS management | Stay on GoDaddy | Email already configured there; no CDN/DDoS needs for this scale |
-| Transactional email | Keep Gmail SMTP | 500/day cap is sufficient; GoDaddy Pro Light would be *worse* (250/day, shared IP reputation) |
-| Access control | Login-required only, no invite allowlist | User accepted residual risk of random sign-ups |
-| Rate limiting | Layered: 3/email/15min + 30/IP/15min + Supabase backstop | IP-only is unsafe at shared-Wi-Fi venues; email-only lets an attacker loop arbitrary emails |
-| Photo upload architecture | Client-direct resumable upload to Google Drive | Vercel's 4.5 MB request-body cap makes the current server-proxied flow unusable |
-| Photo storage backend | Keep Google Drive (not Supabase Storage) | Free tier sufficient; family can browse Drive after the event |
+
+| Area                      | Decision                                                 | Rationale                                                                                     |
+| ------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Hosting                   | Vercel Hobby                                             | Already deployed; Next.js 14 first-class support; free                                        |
+| Domain                    | `prachiwedsmayank.in` registered at GoDaddy              | Already purchased                                                                             |
+| DNS management            | Stay on GoDaddy                                          | Email already configured there; no CDN/DDoS needs for this scale                              |
+| Transactional email       | Keep Gmail SMTP                                          | 500/day cap is sufficient; GoDaddy Pro Light would be *worse* (250/day, shared IP reputation) |
+| Access control            | Login-required only, no invite allowlist                 | User accepted residual risk of random sign-ups                                                |
+| Rate limiting             | Layered: 3/email/15min + 30/IP/15min + Supabase backstop | IP-only is unsafe at shared-Wi-Fi venues; email-only lets an attacker loop arbitrary emails   |
+| Photo upload architecture | Client-direct resumable upload to Google Drive           | Vercel's 4.5 MB request-body cap makes the current server-proxied flow unusable               |
+| Photo storage backend     | Keep Google Drive (not Supabase Storage)                 | Free tier sufficient; family can browse Drive after the event                                 |
+
 
 ## Out of scope
 
@@ -99,22 +101,22 @@ Browser                   /api/photos/init           Google Drive
 ### New
 
 - `supabase/migrations/004_auth_rate_limits.sql`
-  Table + index for rate-limit counting. RLS enabled, no policies (service-role only).
+Table + index for rate-limit counting. RLS enabled, no policies (service-role only).
 - `lib/rate-limit.ts`
-  `checkAndRecord(kind, identifier, windowSec, max)` helper. Uses the existing admin Supabase client from `lib/supabase/admin.ts`.
+`checkAndRecord(kind, identifier, windowSec, max)` helper. Uses the existing admin Supabase client from `lib/supabase/admin.ts`.
 - `app/api/photos/init/route.ts`
-  Auth-checks the Supabase session, rate-limits (20/user/hour), mints a Google access token, opens a resumable upload session, returns `{ sessionUrl, correlationId }`.
+Auth-checks the Supabase session, rate-limits (20/user/hour), mints a Google access token, opens a resumable upload session, returns `{ sessionUrl, correlationId }`.
 - `app/api/photos/register/route.ts`
-  Auth-checks, applies `anyone → reader` permission on the Drive file, returns ok.
+Auth-checks, applies `anyone → reader` permission on the Drive file, returns ok.
 
 ### Changed
 
 - `components/photos/PhotoUploader.tsx`
-  Replace the single `fetch('/api/photos/upload', { body: formData })` with the three-phase init/PUT/register flow. Use `XMLHttpRequest` for PUT (native progress events, mobile-Safari-friendly). Keep all existing queue/preview/camera-input code untouched.
+Replace the single `fetch('/api/photos/upload', { body: formData })` with the three-phase init/PUT/register flow. Use `XMLHttpRequest` for PUT (native progress events, mobile-Safari-friendly). Keep all existing queue/preview/camera-input code untouched.
 - `app/login/actions.ts` (or wherever `signInWithOtp` is currently called)
-  Insert two `checkAndRecord` calls — email key first (3 per 15 min), then IP key (30 per 15 min) — before calling Supabase. Surface friendly errors when either limit is hit.
+Insert two `checkAndRecord` calls — email key first (3 per 15 min), then IP key (30 per 15 min) — before calling Supabase. Surface friendly errors when either limit is hit.
 - `lib/google-drive.ts`
-  Add `createResumableUploadSession` helper.
+Add `createResumableUploadSession` helper.
 
 ### Deleted (after new path is verified on prod)
 
@@ -151,10 +153,10 @@ Five phases. Phase 1 happens locally and is fully tested before touching product
 
 1. In Vercel project settings → Domains → add `prachiwedsmayank.in` and `www.prachiwedsmayank.in`.
 2. In GoDaddy DNS:
-   - Delete any existing `A @` record that points at a parking page.
-   - Add `A @ 76.76.21.21` (value per Vercel's instructions at time of setup).
-   - Add `CNAME www cname.vercel-dns.com`.
-   - Leave MX records and SPF TXT untouched so `hello@prachiwedsmayank.in` keeps working.
+  - Delete any existing `A @` record that points at a parking page.
+  - Add `A @ 76.76.21.21` (value per Vercel's instructions at time of setup).
+  - Add `CNAME www cname.vercel-dns.com`.
+  - Leave MX records and SPF TXT untouched so `hello@prachiwedsmayank.in` keeps working.
 3. Wait 5–60 min for DNS propagation. Vercel provisions TLS automatically.
 4. Set apex as canonical; `www.` redirects to apex.
 
@@ -162,12 +164,12 @@ Five phases. Phase 1 happens locally and is fully tested before touching product
 
 1. Vercel env: update `GOOGLE_OAUTH_REDIRECT_URI` → `https://prachiwedsmayank.in/auth/google/callback`. Redeploy.
 2. Google Cloud Console OAuth client:
-   - Authorized redirect URIs: add `https://prachiwedsmayank.in/auth/google/callback` (keep localhost).
-   - Authorized JavaScript origins: add `https://prachiwedsmayank.in` (keep localhost).
+  - Authorized redirect URIs: add `https://prachiwedsmayank.in/auth/google/callback` (keep localhost).
+  - Authorized JavaScript origins: add `https://prachiwedsmayank.in` (keep localhost).
 3. Supabase dashboard:
-   - Site URL: `https://prachiwedsmayank.in`
-   - Redirect URLs allowlist: add `https://prachiwedsmayank.in/**` (keep localhost).
-   - SMTP sender name: `Prachi & Mayank`.
+  - Site URL: `https://prachiwedsmayank.in`
+  - Redirect URLs allowlist: add `https://prachiwedsmayank.in/`** (keep localhost).
+  - SMTP sender name: `Prachi & Mayank`.
 4. On prod, admin logs in → `/admin/drive-auth` → Connect Google Drive (overwrites the stored refresh token so it was minted against the prod redirect URI).
 
 **Phase 5 — Validation**
@@ -208,18 +210,20 @@ Five phases. Phase 1 happens locally and is fully tested before touching product
 
 ## Testing plan
 
-| Test | Where | Pass criteria |
-|---|---|---|
-| Local: 200 KB JPG upload | `npm run dev` | Uploads, visible in Drive, visible in gallery |
-| Local: 20 MB JPG | `npm run dev` | Same as above, progress bar ticks |
-| Local: 500 MB video | `npm run dev` | Same; completes without OOM |
-| Local: 4th magic-link request for same email within 15 min | `npm run dev` | Blocked with friendly message |
-| Local: 31st request from one IP within 15 min | `npm run dev` | Blocked |
-| Prod: full smoke test at `*.vercel.app` | Before DNS | All pages load, login works, uploads work |
-| Prod: smoke test at `prachiwedsmayank.in` | After DNS + TLS | Same as above |
-| Prod: magic link from mobile over 4G | Phone | Email arrives, link opens in-app browser, logs in |
-| Prod: large-video upload from phone | Phone | Completes without 413 |
-| Deliverability check | Gmail + one Outlook + one Yahoo inbox | Email lands in Inbox, not Spam |
+
+| Test                                                       | Where                                 | Pass criteria                                     |
+| ---------------------------------------------------------- | ------------------------------------- | ------------------------------------------------- |
+| Local: 200 KB JPG upload                                   | `npm run dev`                         | Uploads, visible in Drive, visible in gallery     |
+| Local: 20 MB JPG                                           | `npm run dev`                         | Same as above, progress bar ticks                 |
+| Local: 500 MB video                                        | `npm run dev`                         | Same; completes without OOM                       |
+| Local: 4th magic-link request for same email within 15 min | `npm run dev`                         | Blocked with friendly message                     |
+| Local: 31st request from one IP within 15 min              | `npm run dev`                         | Blocked                                           |
+| Prod: full smoke test at `*.vercel.app`                    | Before DNS                            | All pages load, login works, uploads work         |
+| Prod: smoke test at `prachiwedsmayank.in`                  | After DNS + TLS                       | Same as above                                     |
+| Prod: magic link from mobile over 4G                       | Phone                                 | Email arrives, link opens in-app browser, logs in |
+| Prod: large-video upload from phone                        | Phone                                 | Completes without 413                             |
+| Deliverability check                                       | Gmail + one Outlook + one Yahoo inbox | Email lands in Inbox, not Spam                    |
+
 
 ## Time estimate
 
@@ -243,3 +247,4 @@ Total active time: ~5 hrs. Calendar time: ~1 evening + wait window.
 - At least 3 guests successfully upload a ≥10 MB photo from their phones and see it in the gallery.
 - Rate limits block attempted abuse (verified via test).
 - `hello@prachiwedsmayank.in` email address continues to receive and send normally throughout.
+

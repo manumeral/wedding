@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display, Dancing_Script } from "next/font/google";
 import "./globals.css";
+import { PushNotificationsPrompt } from "@/components/PushNotificationsPrompt";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -32,7 +33,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable} ${dancing.variable}`}>
-      <body className="font-sans bg-ivory text-stone-800 antialiased">{children}</body>
+      <body className="font-sans bg-ivory text-stone-800 antialiased">
+        {children}
+        <PushNotificationsPrompt />
+      </body>
     </html>
   );
 }

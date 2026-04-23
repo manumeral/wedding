@@ -1,7 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
 
 function parseOptionalDateTime(raw: FormDataEntryValue | null): string | null {
   if (raw == null || typeof raw !== 'string') return null
@@ -36,6 +38,11 @@ export async function submitRequest(formData: FormData) {
   }
 
   if (type === 'cab' || type === 'pickup') {
+    if (!(await isCabRequestsBetaEnabled())) {
+      throw new Error(
+        'Cab and airport or railway pickup requests are not open yet. Choose another type or check back soon.',
+      )
+    }
     const pickupAt = parseOptionalDateTime(formData.get('pickup_at'))
     const pickupLoc = formData.get('pickup_location')
     const dropLoc = formData.get('dropoff_location')
@@ -107,13 +114,31 @@ export async function updateRequestStatus(requestId: string, status: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
-  const updates: any = { status }
+  const { data: profile } = await supabase.from('users').select('admin_level').eq('id', user.id).single()
+  if (profile?.admin_level !== 'admin' && profile?.admin_level !== 'super_admin') {
+    throw new Error('Unauthorized')
+  }
+
+  const { data: before } = await supabase.from('requests').select('status').eq('id', requestId).single()
+
+  const updates: Record<string, unknown> = { status }
   if (status === 'claimed') updates.assigned_admin_id = user.id
 
-  await supabase
-    .from('requests')
-    .update(updates)
-    .eq('id', requestId)
+  const { error: upErr } = await supabase.from('requests').update(updates).eq('id', requestId)
+  if (upErr) throw upErr
+
+  try {
+    const admin = createAdminClient()
+    await admin.from('request_audit_log').insert({
+      request_id: requestId,
+      actor_id: user.id,
+      action: 'status_change',
+      old_status: before?.status ?? null,
+      new_status: status,
+    })
+  } catch (e) {
+    console.error('[requests.updateRequestStatus] audit log', e)
+  }
 
   revalidatePath('/admin')
 }

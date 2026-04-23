@@ -142,6 +142,17 @@ export async function updateEventLiveStatus(eventId: string, message: string) {
     throw new Error(error.message)
   }
 
+  if (value) {
+    const { sendWebPushToUserIds, guestUserIdsForPush } = await import('@/lib/web-push')
+    const { data: ev } = await supabase.from('events').select('name').eq('id', eventId).single()
+    const guestIds = await guestUserIdsForPush()
+    void sendWebPushToUserIds(guestIds, {
+      title: ev?.name ? `Live: ${ev.name}` : 'Schedule update',
+      body: value,
+      url: '/',
+    }).catch((e) => console.error('[admin.updateEventLiveStatus] push', e))
+  }
+
   revalidatePath('/admin/events')
   revalidatePath('/')
   return { success: true }

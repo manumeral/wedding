@@ -1,6 +1,8 @@
 import { getAllRequests, updateRequestStatus } from '@/app/actions/requests'
 import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
+import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
+import { CabBetaToggle } from '@/components/admin/CabBetaToggle'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
@@ -18,7 +20,7 @@ export default async function AdminPage() {
   if (!isStaffLevel(profile?.admin_level)) redirect('/')
   const isSuper = isSuperAdminLevel(profile?.admin_level)
 
-  const requests = await getAllRequests()
+  const [requests, cabBeta] = await Promise.all([getAllRequests(), isCabRequestsBetaEnabled()])
 
   const pending = requests.filter((r: any) => r.status === 'pending').length
   const claimed = requests.filter((r: any) => r.status === 'claimed').length
@@ -37,6 +39,12 @@ export default async function AdminPage() {
             </div>
             <AdminTabs isSuperAdmin={isSuper} />
           </div>
+
+          {isSuper && (
+            <div className="mb-6">
+              <CabBetaToggle initialEnabled={cabBeta} />
+            </div>
+          )}
 
           {/* Stat cards */}
           <div className="grid sm:grid-cols-3 gap-4">

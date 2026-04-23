@@ -1,17 +1,31 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ExternalLink, Film, Image as ImageIcon, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Film,
+  Image as ImageIcon,
+  Trash2,
+  X,
+} from 'lucide-react'
 import type { AlbumFile } from '@/lib/google-drive'
+import { deleteGalleryPhoto } from '@/app/actions/photos'
 
 interface Props {
   files: AlbumFile[]
   folderUrl: string | null
+  isAdmin?: boolean
 }
 
-export function PhotoGallery({ files, folderUrl }: Props) {
+export function PhotoGallery({ files, folderUrl, isAdmin = false }: Props) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const close = useCallback(() => setActiveIndex(null), [])
   const prev = useCallback(() => {
@@ -37,6 +51,27 @@ export function PhotoGallery({ files, folderUrl }: Props) {
   }, [activeIndex, close, prev, next])
 
   const active = activeIndex !== null ? files[activeIndex] : null
+
+  const removeFromAlbum = useCallback(
+    (file: AlbumFile) => {
+      if (!isAdmin) return
+      if (!confirm(`Remove this from the shared album? This cannot be undone.\n\n${file.name}`)) {
+        return
+      }
+      setDeletingId(file.id)
+      startTransition(async () => {
+        const res = await deleteGalleryPhoto(file.id)
+        setDeletingId(null)
+        if ('error' in res) {
+          alert(res.error)
+          return
+        }
+        setActiveIndex(null)
+        router.refresh()
+      })
+    },
+    [isAdmin, router],
+  )
 
   if (files.length === 0) {
     return (
@@ -113,6 +148,21 @@ export function PhotoGallery({ files, folderUrl }: Props) {
                 <p className="text-[11px] text-white truncate">by {f.uploaderName}</p>
               </div>
             )}
+
+            {isAdmin && (
+              <button
+                type="button"
+                aria-label="Remove from album"
+                disabled={pending && deletingId === f.id}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeFromAlbum(f)
+                }}
+                className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/55 text-white opacity-0 group-hover:opacity-100 hover:bg-red-700 transition disabled:opacity-40"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </button>
         ))}
       </div>
@@ -188,16 +238,32 @@ export function PhotoGallery({ files, folderUrl }: Props) {
                   <p className="text-xs text-white/60">Shared by {active.uploaderName}</p>
                 )}
               </div>
-              <Link
-                href={active.viewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-gold-300 hover:text-gold-200 font-medium"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Open in Drive
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    disabled={pending && deletingId === active.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeFromAlbum(active)
+                    }}
+                    className="inline-flex items-center gap-1.5 text-red-300 hover:text-red-200 font-medium disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Remove from album
+                  </button>
+                )}
+                <Link
+                  href={active.viewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-gold-300 hover:text-gold-200 font-medium"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Open in Drive
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
           </div>
         </div>

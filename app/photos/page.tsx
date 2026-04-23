@@ -138,7 +138,7 @@ export default async function PhotosPage() {
               </div>
             )}
 
-            <PhotoGallery files={album.files} folderUrl={album.folderUrl} />
+            <PhotoGallery files={album.files} folderUrl={album.folderUrl} isAdmin={isAdmin} />
           </section>
         )}
       </div>

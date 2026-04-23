@@ -7,7 +7,7 @@ const nextConfig = {
   // googleapis has a huge dependency tree that confuses Next's bundler.
   // Let Node resolve it natively at runtime instead of webpack-bundling it.
   experimental: {
-    serverComponentsExternalPackages: ['googleapis', 'google-auth-library'],
+    serverComponentsExternalPackages: ['googleapis', 'google-auth-library', 'web-push'],
   },
   images: {
     remotePatterns: supabaseHost

@@ -1,6 +1,7 @@
 import { getMyRequests } from '@/app/actions/requests'
 import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel } from '@/lib/auth/roles'
+import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
 import { Navbar } from '@/components/Navbar'
 import { RequestForm } from '@/components/requests/RequestForm'
 import { Car, Plane, GlassWater, HelpCircle, Clock, CheckCircle2, UserCheck, MapPin } from 'lucide-react'
@@ -20,7 +21,11 @@ const statusMeta: Record<string, { label: string; className: string; icon: any }
 }
 
 export default async function RequestsPage() {
-  const [requests, profile] = await Promise.all([getMyRequests(), getUserProfile()])
+  const [requests, profile, cabBeta] = await Promise.all([
+    getMyRequests(),
+    getUserProfile(),
+    isCabRequestsBetaEnabled(),
+  ])
 
   return (
     <main className="min-h-screen pb-24">
@@ -43,7 +48,7 @@ export default async function RequestsPage() {
       </section>
 
       <div className="container-page max-w-2xl mt-10 space-y-10">
-        <RequestForm />
+        <RequestForm cabBetaEnabled={cabBeta} />
 
         {/* History */}
         <section>

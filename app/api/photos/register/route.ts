@@ -34,6 +34,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'driveFileId is required.' }, { status: 400 })
   }
 
+  let publicWarning: string | null = null
   try {
     await makeFilePublic(driveFileId)
   } catch (err: any) {
@@ -47,11 +48,27 @@ export async function POST(req: Request) {
     if (err instanceof DriveNotConnectedError) {
       return NextResponse.json({ error: err.message }, { status: 503 })
     }
-    return NextResponse.json(
-      { ok: true, warning: 'Upload stored, but public permission could not be set.' },
-    )
+    publicWarning = 'Upload stored, but public permission could not be set.'
+  }
+
+  const { data: memberships } = await supabase
+    .from('user_guest_groups')
+    .select('group_id')
+    .eq('user_id', user.id)
+  const groupIds = (memberships ?? []).map((r) => r.group_id).filter(Boolean)
+
+  const { error: insertErr } = await supabase.from('photo_uploads').insert({
+    drive_file_id: driveFileId,
+    uploaded_by: user.id,
+    group_ids: groupIds,
+  })
+  if (insertErr && insertErr.code !== '23505') {
+    console.error('[photos.register] photo_uploads insert', insertErr)
   }
 
   revalidatePath('/photos')
+  if (publicWarning) {
+    return NextResponse.json({ ok: true, warning: publicWarning })
+  }
   return NextResponse.json({ ok: true })
 }

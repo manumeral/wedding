@@ -1,8 +1,10 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { assertSuperAdmin } from '@/lib/auth/roles'
+import { sendWebPushToUserIds } from '@/lib/web-push'
 
 export type InboxListItem = {
   id: string
@@ -37,9 +39,24 @@ export async function sendBroadcast(params: {
     p_group_ids: params.targetsAllGuests ? [] : params.groupIds,
   })
   if (error) throw new Error(error.message)
+
+  const broadcastId = data as string
+  const admin = createAdminClient()
+  const { data: inboxRows } = await admin
+    .from('user_inbox')
+    .select('user_id')
+    .eq('broadcast_id', broadcastId)
+  const recipientIds = Array.from(new Set((inboxRows ?? []).map((r) => r.user_id)))
+
+  void sendWebPushToUserIds(recipientIds, {
+    title,
+    body,
+    url: '/inbox',
+  }).catch((e) => console.error('[broadcasts.sendBroadcast] push', e))
+
   revalidatePath('/admin/broadcast')
   revalidatePath('/inbox')
-  return { broadcastId: data as string }
+  return { broadcastId }
 }
 
 export async function listMyInbox(): Promise<InboxListItem[]> {

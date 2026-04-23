@@ -423,6 +423,101 @@ $$;
 
 grant execute on function public.create_broadcast_and_fanout(text, text, boolean, uuid[]) to authenticated;
 
+-- Request status change audit (inserts from server using service role only).
+create table public.request_audit_log (
+  id bigint generated always as identity primary key,
+  request_id uuid not null references public.requests(id) on delete cascade,
+  actor_id uuid references public.users(id) on delete set null,
+  action text not null,
+  old_status text,
+  new_status text,
+  details jsonb,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index request_audit_log_request_id_idx on public.request_audit_log (request_id);
+create index request_audit_log_created_at_idx on public.request_audit_log (created_at desc);
+
+alter table public.request_audit_log enable row level security;
+
+create policy "request_audit_log_select_staff"
+  on public.request_audit_log for select
+  to authenticated
+  using (public.is_admin());
+
+-- Gallery index: Drive file id + uploader + group_ids (RLS scopes guest visibility).
+create table public.photo_uploads (
+  id uuid primary key default gen_random_uuid(),
+  drive_file_id text not null unique,
+  uploaded_by uuid not null references public.users(id) on delete cascade,
+  group_ids uuid[] not null default '{}',
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index photo_uploads_drive_file_id_idx on public.photo_uploads (drive_file_id);
+create index photo_uploads_uploaded_by_idx on public.photo_uploads (uploaded_by);
+
+alter table public.photo_uploads enable row level security;
+
+create policy "photo_uploads_select"
+  on public.photo_uploads for select
+  to authenticated
+  using (
+    public.is_admin()
+    or coalesce(array_length(group_ids, 1), 0) = 0
+    or exists (
+      select 1 from public.user_guest_groups ugg
+      where ugg.user_id = auth.uid()
+        and ugg.group_id = any (group_ids)
+    )
+  );
+
+create policy "photo_uploads_insert_own"
+  on public.photo_uploads for insert
+  to authenticated
+  with check (uploaded_by = auth.uid());
+
+create policy "photo_uploads_delete_admin"
+  on public.photo_uploads for delete
+  to authenticated
+  using (public.is_admin());
+
+-- Web Push subscriptions (VAPID).
+create table public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  unique (user_id, endpoint)
+);
+
+create index push_subscriptions_user_id_idx on public.push_subscriptions (user_id);
+
+alter table public.push_subscriptions enable row level security;
+
+create policy "push_subscriptions_select_own"
+  on public.push_subscriptions for select
+  to authenticated
+  using (user_id = auth.uid());
+
+create policy "push_subscriptions_insert_own"
+  on public.push_subscriptions for insert
+  to authenticated
+  with check (user_id = auth.uid());
+
+create policy "push_subscriptions_delete_own"
+  on public.push_subscriptions for delete
+  to authenticated
+  using (user_id = auth.uid());
+
+create policy "push_subscriptions_update_own"
+  on public.push_subscriptions for update
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 -- Storage bucket for avatars.
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)

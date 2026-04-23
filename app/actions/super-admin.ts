@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { assertSuperAdmin, type AdminLevel } from '@/lib/auth/roles'
+import { writeConfig } from '@/lib/supabase/admin'
+import { CAB_REQUESTS_BETA_CONFIG_KEY } from '@/lib/cab-beta'
 
 export async function setUserAdminLevel(userId: string, level: AdminLevel) {
   await assertSuperAdmin()
@@ -37,4 +39,12 @@ export async function setUserAdminLevel(userId: string, level: AdminLevel) {
   revalidatePath('/admin/users')
   revalidatePath('/admin/team')
   return { success: true }
+}
+
+export async function setCabRequestsBeta(enabled: boolean) {
+  await assertSuperAdmin()
+  await writeConfig(CAB_REQUESTS_BETA_CONFIG_KEY, enabled ? 'true' : 'false')
+  revalidatePath('/admin')
+  revalidatePath('/requests')
+  return { success: true as const }
 }

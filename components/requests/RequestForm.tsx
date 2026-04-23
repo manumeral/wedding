@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { submitRequest } from '@/app/actions/requests'
 import { Car, Plane, GlassWater, HelpCircle, MapPin, CalendarClock, Building2 } from 'lucide-react'
 
@@ -11,16 +11,32 @@ const typeMeta: Record<string, { label: string; icon: typeof Car; color: string 
   other: { label: 'Something else', icon: HelpCircle, color: 'from-stone-200 to-stone-300' },
 }
 
-export function RequestForm() {
-  const [type, setType] = useState<string>('cab')
+export function RequestForm({ cabBetaEnabled }: { cabBetaEnabled: boolean }) {
+  const visibleTypes = useMemo(() => {
+    if (cabBetaEnabled) return typeMeta
+    return Object.fromEntries(
+      Object.entries(typeMeta).filter(([k]) => k !== 'cab' && k !== 'pickup'),
+    ) as typeof typeMeta
+  }, [cabBetaEnabled])
+
+  const [type, setType] = useState<string>(() => (cabBetaEnabled ? 'cab' : 'water'))
   const transport = type === 'cab' || type === 'pickup'
 
   return (
     <section className="card p-8">
       <h2 className="font-serif text-2xl text-wine-700 mb-2">Need something?</h2>
       <p className="text-sm text-stone-600 mb-6">
-        For cabs and station/airport pickups, fill in times and places so we can coordinate without
-        back-and-forth.
+        {cabBetaEnabled ? (
+          <>
+            For cabs and station/airport pickups, fill in times and places so we can coordinate without
+            back-and-forth.
+          </>
+        ) : (
+          <>
+            Transport requests will open when the hosts turn them on. For now you can ask for water,
+            refreshments, or anything else.
+          </>
+        )}
       </p>
 
       <form action={submitRequest} className="space-y-5">
@@ -29,7 +45,7 @@ export function RequestForm() {
             Type of request
           </label>
           <div className="grid grid-cols-2 gap-3">
-            {Object.entries(typeMeta).map(([key, meta]) => {
+            {Object.entries(visibleTypes).map(([key, meta]) => {
               const Icon = meta.icon
               return (
                 <label
