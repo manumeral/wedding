@@ -312,6 +312,124 @@ export async function uploadToAlbum(input: UploadInput): Promise<UploadedFile> {
   }
 }
 
+// ---------- Public: client-direct resumable upload ----------
+
+export interface ResumableSessionInput {
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  uploaderId: string
+  uploaderName: string
+}
+
+export interface ResumableSessionOutput {
+  sessionUrl: string
+}
+
+/**
+ * Creates a Google Drive resumable upload session and returns the
+ * session URL. The browser then PUTs the file bytes directly to that
+ * URL, bypassing our server entirely.
+ *
+ * Session URLs are valid for ~1 week, single-use, and carry their
+ * own auth — safe to hand to the browser.
+ */
+export async function createResumableUploadSession(
+  input: ResumableSessionInput,
+): Promise<ResumableSessionOutput> {
+  const { env } = readOAuthEnv()
+  if (!env) {
+    throw new DriveNotConnectedError('Google Drive environment variables are not set.')
+  }
+
+  const refreshToken = await readConfig(CONFIG_KEY_REFRESH)
+  if (!refreshToken) {
+    throw new DriveNotConnectedError('Google Drive is not connected yet. Ask an organizer to connect it.')
+  }
+
+  const client = buildOAuthClient(env)
+  client.setCredentials({ refresh_token: refreshToken })
+
+  let accessToken: string | null | undefined
+  try {
+    const tok = await client.getAccessToken()
+    accessToken = tok.token
+  } catch (err: any) {
+    if (isAuthError(err)) {
+      throw new DriveAuthError('Google connection has expired. An organizer needs to reconnect.')
+    }
+    throw err
+  }
+  if (!accessToken) {
+    throw new DriveAuthError('Could not mint Google access token.')
+  }
+
+  const metadata = {
+    name: input.filename,
+    mimeType: input.mimeType,
+    parents: [env.folderId],
+    appProperties: {
+      uploaderUserId: input.uploaderId,
+      uploaderName: input.uploaderName.slice(0, 100),
+      app: 'wedding',
+    },
+  }
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': input.mimeType,
+        'X-Upload-Content-Length': String(input.sizeBytes),
+      },
+      body: JSON.stringify(metadata),
+    },
+  )
+
+  if (res.status === 401 || res.status === 403) {
+    throw new DriveAuthError('Google rejected the upload session request.')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Drive refused session (${res.status}): ${text || 'no body'}`)
+  }
+
+  const sessionUrl = res.headers.get('Location')
+  if (!sessionUrl) {
+    throw new Error('Drive did not return a resumable session URL.')
+  }
+
+  return { sessionUrl }
+}
+
+/**
+ * Applies "anyone with link → reader" permission on a file so that
+ * <img src="..drive thumbnail.."> renders without an auth header.
+ * Safe to call multiple times; Drive dedups identical grants.
+ */
+export async function makeFilePublic(fileId: string): Promise<void> {
+  const ctx = await getDrive()
+  if (!ctx) {
+    throw new DriveNotConnectedError('Google Drive is not connected.')
+  }
+  const { drive } = ctx
+  try {
+    await drive.permissions.create({
+      fileId,
+      requestBody: { role: 'reader', type: 'anyone' },
+      supportsAllDrives: true,
+    })
+  } catch (err: any) {
+    if (isAuthError(err)) {
+      throw new DriveAuthError('Google connection has expired.')
+    }
+    throw err
+  }
+}
+
 // ---------- Errors ----------
 
 export class DriveNotConnectedError extends Error {
