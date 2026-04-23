@@ -19,6 +19,51 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+const DRIVE_RESUMABLE_INIT =
+  'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true'
+
+interface DriveFileMetadata {
+  name: string
+  mimeType: string
+  parents: string[]
+  appProperties: { uploaderUserId: string; uploaderName: string; app: string }
+}
+
+/**
+ * Start the resumable session from the browser so Google sees the real
+ * Origin header (server-side init breaks CORS on the follow-up PUT).
+ */
+async function createResumableSessionUrl(
+  file: File,
+  accessToken: string,
+  metadata: DriveFileMetadata,
+): Promise<string> {
+  const res = await fetch(DRIVE_RESUMABLE_INIT, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json; charset=UTF-8',
+      'X-Upload-Content-Type': file.type || 'application/octet-stream',
+      'X-Upload-Content-Length': String(file.size),
+    },
+    body: JSON.stringify(metadata),
+  })
+  if (!res.ok) {
+    let msg = `Drive refused session (${res.status})`
+    try {
+      const body = await res.json()
+      const gErr = body?.error
+      if (typeof gErr?.message === 'string') msg = gErr.message
+    } catch {}
+    throw new Error(msg)
+  }
+  const sessionUrl = res.headers.get('Location')
+  if (!sessionUrl) {
+    throw new Error('Drive did not return a resumable session URL.')
+  }
+  return sessionUrl
+}
+
 async function initSession(file: File): Promise<{ sessionUrl: string; correlationId: string }> {
   const res = await fetch('/api/photos/init', {
     method: 'POST',
@@ -37,7 +82,13 @@ async function initSession(file: File): Promise<{ sessionUrl: string; correlatio
     } catch {}
     throw new Error(msg)
   }
-  return res.json()
+  const { accessToken, metadata, correlationId } = (await res.json()) as {
+    accessToken: string
+    metadata: DriveFileMetadata
+    correlationId: string
+  }
+  const sessionUrl = await createResumableSessionUrl(file, accessToken, metadata)
+  return { sessionUrl, correlationId }
 }
 
 function putToDriveWithProgress(

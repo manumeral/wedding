@@ -248,35 +248,39 @@ export async function listAlbum({
 
 // ---------- Public: client-direct resumable upload ----------
 
-export interface ResumableSessionInput {
+export interface ClientDirectUploadInitInput {
   filename: string
   mimeType: string
-  sizeBytes: number
   uploaderId: string
   uploaderName: string
-  /**
-   * Browser origin that will PUT bytes to the returned session URL.
-   * Google binds the resumable session to this origin for CORS — without
-   * it, the browser's PUT is blocked by `Access-Control-Allow-Origin`.
-   */
-  origin: string
-}
-
-export interface ResumableSessionOutput {
-  sessionUrl: string
 }
 
 /**
- * Creates a Google Drive resumable upload session and returns the
- * session URL. The browser then PUTs the file bytes directly to that
- * URL, bypassing our server entirely.
+ * Metadata for Drive `files.create` + a short-lived OAuth access token.
+ * The browser must POST this JSON to the resumable init URL itself so
+ * Google sees a matching `Origin`/`Host` pair (server-side fetch cannot
+ * spoof Origin — see Google error "Origin doesn't match Host for XD3").
  *
- * Session URLs are valid for ~1 week, single-use, and carry their
- * own auth — safe to hand to the browser.
+ * The token is user-scoped Drive access (~1h). Only hand it to the
+ * browser after auth + rate-limit checks on `/api/photos/init`.
  */
-export async function createResumableUploadSession(
-  input: ResumableSessionInput,
-): Promise<ResumableSessionOutput> {
+export interface ClientDirectUploadInit {
+  accessToken: string
+  metadata: {
+    name: string
+    mimeType: string
+    parents: string[]
+    appProperties: {
+      uploaderUserId: string
+      uploaderName: string
+      app: string
+    }
+  }
+}
+
+export async function mintClientDirectUploadInit(
+  input: ClientDirectUploadInitInput,
+): Promise<ClientDirectUploadInit> {
   const { env } = readOAuthEnv()
   if (!env) {
     throw new DriveNotConnectedError('Google Drive environment variables are not set.')
@@ -304,47 +308,19 @@ export async function createResumableUploadSession(
     throw new DriveAuthError('Could not mint Google access token.')
   }
 
-  const metadata = {
-    name: input.filename,
-    mimeType: input.mimeType,
-    parents: [env.folderId],
-    appProperties: {
-      uploaderUserId: input.uploaderId,
-      uploaderName: input.uploaderName.slice(0, 100),
-      app: 'wedding',
-    },
-  }
-
-  const res = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json; charset=UTF-8',
-        'X-Upload-Content-Type': input.mimeType,
-        'X-Upload-Content-Length': String(input.sizeBytes),
-        Origin: input.origin,
-        'X-Origin': input.origin,
+  return {
+    accessToken,
+    metadata: {
+      name: input.filename,
+      mimeType: input.mimeType,
+      parents: [env.folderId],
+      appProperties: {
+        uploaderUserId: input.uploaderId,
+        uploaderName: input.uploaderName.slice(0, 100),
+        app: 'wedding',
       },
-      body: JSON.stringify(metadata),
     },
-  )
-
-  if (res.status === 401 || res.status === 403) {
-    throw new DriveAuthError('Google rejected the upload session request.')
   }
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Drive refused session (${res.status}): ${text || 'no body'}`)
-  }
-
-  const sessionUrl = res.headers.get('Location')
-  if (!sessionUrl) {
-    throw new Error('Drive did not return a resumable session URL.')
-  }
-
-  return { sessionUrl }
 }
 
 /**
