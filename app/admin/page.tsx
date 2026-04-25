@@ -3,6 +3,7 @@ import { getUserProfile } from '@/app/actions/user'
 import { isStaffLevel, isSuperAdminLevel } from '@/lib/auth/roles'
 import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
 import { CabBetaToggle } from '@/components/admin/CabBetaToggle'
+import { DeleteRequestButton } from '@/components/admin/DeleteRequestButton'
 import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/Navbar'
 import { AdminTabs } from '@/components/AdminTabs'
@@ -162,20 +163,23 @@ export default async function AdminPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {req.status === 'pending' && (
-                            <form action={updateRequestStatus.bind(null, req.id, 'claimed')} className="inline">
-                              <button type="submit" className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-wine-700 text-ivory hover:bg-wine-800 transition">
-                                Claim
-                              </button>
-                            </form>
-                          )}
-                          {req.status === 'claimed' && (
-                            <form action={updateRequestStatus.bind(null, req.id, 'resolved')} className="inline">
-                              <button type="submit" className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition">
-                                Resolve
-                              </button>
-                            </form>
-                          )}
+                          <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                            {req.status === 'pending' && (
+                              <form action={updateRequestStatus.bind(null, req.id, 'claimed')} className="inline">
+                                <button type="submit" className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-wine-700 text-ivory hover:bg-wine-800 transition">
+                                  Claim
+                                </button>
+                              </form>
+                            )}
+                            {req.status === 'claimed' && (
+                              <form action={updateRequestStatus.bind(null, req.id, 'resolved')} className="inline">
+                                <button type="submit" className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-green-600 text-white hover:bg-green-700 transition">
+                                  Resolve
+                                </button>
+                              </form>
+                            )}
+                            <DeleteRequestButton requestId={req.id} />
+                          </div>
                         </td>
                       </tr>
                     )

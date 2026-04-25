@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { submitRequest } from '@/app/actions/requests'
-import { Car, Plane, GlassWater, HelpCircle, MapPin, CalendarClock, Building2 } from 'lucide-react'
+import { Car, Plane, GlassWater, HelpCircle, MapPin, CalendarClock, Building2, AlertCircle } from 'lucide-react'
 
 const typeMeta: Record<string, { label: string; icon: typeof Car; color: string }> = {
   cab: { label: 'Cab / Transport', icon: Car, color: 'from-blush-200 to-blush-300' },
@@ -21,6 +22,9 @@ export function RequestForm({ cabBetaEnabled }: { cabBetaEnabled: boolean }) {
 
   const [type, setType] = useState<string>(() => (cabBetaEnabled ? 'cab' : 'water'))
   const transport = type === 'cab' || type === 'pickup'
+  const [formError, setFormError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+  const router = useRouter()
 
   return (
     <section className="card p-8">
@@ -39,7 +43,25 @@ export function RequestForm({ cabBetaEnabled }: { cabBetaEnabled: boolean }) {
         )}
       </p>
 
-      <form action={submitRequest} className="space-y-5">
+      <form
+        className="space-y-5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setFormError(null)
+          const form = e.currentTarget
+          const formData = new FormData(form)
+          startTransition(async () => {
+            const res = await submitRequest(null, formData)
+            if (res && 'error' in res) {
+              setFormError(res.error)
+              return
+            }
+            form.reset()
+            setType(cabBetaEnabled ? 'cab' : 'water')
+            router.refresh()
+          })
+        }}
+      >
         <div>
           <label className="block text-xs font-medium text-stone-500 uppercase tracking-wider mb-2">
             Type of request
@@ -184,8 +206,19 @@ export function RequestForm({ cabBetaEnabled }: { cabBetaEnabled: boolean }) {
           />
         </div>
 
-        <button type="submit" className="btn-primary w-full">
-          Send request
+        {formError && (
+          <div className="flex items-start gap-2 p-3 rounded-xl border border-red-200 bg-red-50 text-sm text-red-800">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{formError}</span>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {pending ? 'Sending…' : 'Send request'}
         </button>
       </form>
     </section>

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
+import { buildRequestContentKey, findRecentDuplicateRequestId } from '@/lib/request-dedupe'
 
 function parseOptionalDateTime(raw: FormDataEntryValue | null): string | null {
   if (raw == null || typeof raw !== 'string') return null
@@ -14,11 +15,16 @@ function parseOptionalDateTime(raw: FormDataEntryValue | null): string | null {
   return d.toISOString()
 }
 
-export async function submitRequest(formData: FormData) {
+export type SubmitRequestState = null | { error: string }
+
+export async function submitRequest(
+  _prev: SubmitRequestState,
+  formData: FormData,
+): Promise<SubmitRequestState> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) throw new Error('Not authenticated')
+  if (!user) return { error: 'Not signed in.' }
 
   const type = formData.get('type') as string
   const detailsRaw = formData.get('details')
@@ -39,9 +45,10 @@ export async function submitRequest(formData: FormData) {
 
   if (type === 'cab' || type === 'pickup') {
     if (!(await isCabRequestsBetaEnabled())) {
-      throw new Error(
-        'Cab and airport or railway pickup requests are not open yet. Choose another type or check back soon.',
-      )
+      return {
+        error:
+          'Cab and airport or railway pickup requests are not open yet. Choose another type or check back soon.',
+      }
     }
     const pickupAt = parseOptionalDateTime(formData.get('pickup_at'))
     const pickupLoc = formData.get('pickup_location')
@@ -61,18 +68,44 @@ export async function submitRequest(formData: FormData) {
       row.hub_kind = h === 'airport' || h === 'railway' ? h : null
     }
 
-    if (!row.pickup_at) throw new Error('Please choose a pickup or arrival time.')
-    if (!row.pickup_location) throw new Error('Please fill in the pickup / station or terminal details.')
-    if (!row.dropoff_location) throw new Error('Please fill in where you need to be dropped off.')
-    if (type === 'pickup' && !row.hub_kind) throw new Error('Choose airport or railway station.')
+    if (!row.pickup_at) return { error: 'Please choose a pickup or arrival time.' }
+    if (!row.pickup_location) {
+      return { error: 'Please fill in the pickup / station or terminal details.' }
+    }
+    if (!row.dropoff_location) {
+      return { error: 'Please fill in where you need to be dropped off.' }
+    }
+    if (type === 'pickup' && !row.hub_kind) {
+      return { error: 'Choose airport or railway station.' }
+    }
+  }
+
+  const dedupeKey = buildRequestContentKey({
+    type: type as 'cab' | 'pickup' | 'water' | 'other',
+    details: (row.details as string) ?? null,
+    pickup_at: (row.pickup_at as string) ?? null,
+    pickup_location: (row.pickup_location as string) ?? null,
+    dropoff_location: (row.dropoff_location as string) ?? null,
+    dropoff_at: (row.dropoff_at as string) ?? null,
+    hub_kind: (row.hub_kind as string) ?? null,
+  })
+  const duplicateId = await findRecentDuplicateRequestId(supabase, user.id, dedupeKey)
+  if (duplicateId) {
+    return {
+      error:
+        'This request is already in your recent list. Scroll down to confirm — use “Request Help” only once unless something changes.',
+    }
   }
 
   const { error } = await supabase.from('requests').insert(row)
 
-  if (error) throw error
+  if (error) {
+    return { error: error.message }
+  }
 
   revalidatePath('/requests')
   revalidatePath('/admin')
+  return null
 }
 
 export async function getMyRequests() {
@@ -141,4 +174,27 @@ export async function updateRequestStatus(requestId: string, status: string) {
   }
 
   revalidatePath('/admin')
+}
+
+export async function deleteRequest(requestId: string) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('admin_level')
+    .eq('id', user.id)
+    .single()
+  if (profile?.admin_level !== 'admin' && profile?.admin_level !== 'super_admin') {
+    throw new Error('Unauthorized')
+  }
+
+  const { error } = await supabase.from('requests').delete().eq('id', requestId)
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/requests')
 }

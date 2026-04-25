@@ -124,6 +124,10 @@ create policy "Users can view own requests." on requests for select using (auth.
 create policy "Users can insert own requests." on requests for insert with check (auth.uid() = user_id);
 create policy "Admins can view all requests." on requests for select using (public.is_admin());
 create policy "Admins can update requests." on requests for update using (public.is_admin());
+create policy "Admins can delete requests"
+  on public.requests for delete
+  to authenticated
+  using (public.is_admin());
 
 -- Events policies
 create policy "Anyone can view events." on events for select using (true);
