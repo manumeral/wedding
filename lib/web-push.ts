@@ -1,4 +1,5 @@
 import webpush from 'web-push'
+import { randomUUID } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export function isWebPushConfigured(): boolean {
@@ -62,6 +63,7 @@ export async function sendWebPushToUserIds(
     title: payload.title,
     body: payload.body,
     url: normalizeUrl(payload.url),
+    tag: randomUUID(),
   })
 
   for (const row of subs ?? []) {
@@ -70,7 +72,10 @@ export async function sendWebPushToUserIds(
       keys: { p256dh: row.p256dh, auth: row.auth },
     }
     try {
-      await webpush.sendNotification(subscription, body, { TTL: 60 * 60 })
+      await webpush.sendNotification(subscription, body, {
+        TTL: 60 * 60,
+        headers: { Urgency: 'high' },
+      })
     } catch (err: any) {
       const status = err?.statusCode ?? err?.status
       if (status === 404 || status === 410) {

@@ -1,45 +1,100 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, useCallback } from 'react'
 import { Bell, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import {
+  getVapidPublicKey,
+  browserSupportsWebPush,
+  isPushPromptSnoozed,
+  snoozePushPrompt,
+  registerAndSavePushSubscription,
+  getExistingPushSubscription,
+} from '@/lib/push-client'
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const rawData = atob(base64)
-  const outputArray = new Uint8Array(rawData.length)
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i)
-  }
-  return outputArray
-}
+const VAPID_PUBLIC = getVapidPublicKey()
 
-const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ''
+type PromptMode = 'off' | 'ask-permission' | 'complete-setup'
 
+/**
+ * Shown to signed-in users when we can use Web Push. Handles:
+ * - permission still "default" — can snooze 72h
+ * - permission "granted" but no push subscription (finish saving device to server)
+ * Hidden when fully subscribed, unsupported, or no VAPID in build.
+ */
 export function PushNotificationsPrompt() {
-  const [show, setShow] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+  const [mode, setMode] = useState<PromptMode>('off')
   const [pending, startTransition] = useTransition()
 
-  useEffect(() => {
-    if (!VAPID_PUBLIC || typeof window === 'undefined') return
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+  const detectMode = useCallback(async () => {
+    if (!VAPID_PUBLIC || !browserSupportsWebPush()) {
+      setMode('off')
+      return
+    }
 
-    const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return
-      if (Notification.permission !== 'default') return
+    const {
+      data: { session },
+    } = await createClient().auth.getSession()
+    if (!session) {
+      setMode('off')
+      return
+    }
+
+    if (Notification.permission === 'denied') {
+      setMode('off')
+      return
+    }
+
+    // Wait for service worker to be available so we can read subscription
+    try {
+      await navigator.serviceWorker.ready
+    } catch {
+      /* ignore */
+    }
+
+    const sub = await getExistingPushSubscription()
+    if (sub) {
+      setMode('off')
+      return
+    }
+
+    if (Notification.permission === 'default') {
+      if (isPushPromptSnoozed()) {
+        setMode('off')
+        return
+      }
+      setMode('ask-permission')
+      return
+    }
+
+    if (Notification.permission === 'granted') {
       try {
-        if (sessionStorage.getItem('push_prompt_dismissed') === '1') return
+        if (sessionStorage.getItem('push_setup_dismissed') === '1') {
+          setMode('off')
+          return
+        }
       } catch {
         /* ignore */
       }
-      setShow(true)
-    })
+      setMode('complete-setup')
+    }
   }, [])
 
-  if (!VAPID_PUBLIC || !show || dismissed) return null
+  useEffect(() => {
+    void detectMode()
+    const id = setInterval(() => {
+      void detectMode()
+    }, 45_000)
+    return () => clearInterval(id)
+  }, [detectMode])
+
+  if (!VAPID_PUBLIC || mode === 'off') return null
+
+  const title = mode === 'complete-setup' ? 'Finish push setup' : 'Get live updates'
+  const copy =
+    mode === 'complete-setup'
+      ? 'Notifications are allowed, but this device is not registered for push yet. Complete setup to receive system alerts when you use another tab or app.'
+      : 'Allow browser notifications for itinerary changes, inbox messages, and request updates. They can appear in the background when you are on another site.'
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-[100] max-w-md mx-auto sm:left-auto sm:right-6 sm:mx-0">
@@ -48,9 +103,10 @@ export function PushNotificationsPrompt() {
           <Bell className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-wine-800 text-sm">Get live updates</p>
-          <p className="text-xs text-stone-600 mt-1">
-            Allow notifications for day-of itinerary changes and messages from the hosts.
+          <p className="font-medium text-wine-800 text-sm">{title}</p>
+          <p className="text-xs text-stone-600 mt-1">{copy}</p>
+          <p className="text-[11px] text-stone-500 mt-1.5">
+            iPhone/iPad: add this site to the Home Screen first; Apple only enables web push for add-to-Home web apps. macOS/Windows: check System Settings if alerts still do not show.
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             <button
@@ -60,54 +116,35 @@ export function PushNotificationsPrompt() {
               onClick={() => {
                 startTransition(async () => {
                   try {
-                    const perm = await Notification.requestPermission()
-                    if (perm !== 'granted') {
-                      setDismissed(true)
-                      return
-                    }
-                    const reg = await navigator.serviceWorker.register('/sw.js')
-                    const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC)
-                    const sub = await reg.pushManager.subscribe({
-                      userVisibleOnly: true,
-                      applicationServerKey: applicationServerKey as unknown as BufferSource,
-                    })
-                    const json = sub.toJSON()
-                    const res = await fetch('/api/push/subscribe', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify(json),
-                    })
-                    if (!res.ok) {
-                      const j = await res.json().catch(() => ({}))
-                      throw new Error(j?.error || `Subscribe failed (${res.status})`)
-                    }
-                  } catch (e: any) {
+                    await registerAndSavePushSubscription()
+                    setMode('off')
+                  } catch (e: unknown) {
                     console.error(e)
-                    alert(e?.message ?? 'Could not enable notifications.')
-                  } finally {
-                    setDismissed(true)
-                    setShow(false)
+                    const msg = e instanceof Error ? e.message : 'Could not enable notifications.'
+                    alert(msg)
                   }
                 })
               }}
             >
-              {pending ? 'Working…' : 'Enable'}
+              {pending ? 'Working…' : mode === 'complete-setup' ? 'Complete setup' : 'Enable'}
             </button>
             <button
               type="button"
               className="text-xs text-stone-500 hover:text-wine-800 py-2 px-2"
               onClick={() => {
-                try {
-                  sessionStorage.setItem('push_prompt_dismissed', '1')
-                } catch {
-                  /* ignore */
+                if (mode === 'ask-permission') {
+                  snoozePushPrompt(72)
+                } else {
+                  try {
+                    sessionStorage.setItem('push_setup_dismissed', '1')
+                  } catch {
+                    /* ignore */
+                  }
                 }
-                setDismissed(true)
-                setShow(false)
+                setMode('off')
               }}
             >
-              Not now
+              {mode === 'ask-permission' ? 'Not now' : 'Maybe later'}
             </button>
           </div>
         </div>
@@ -116,13 +153,16 @@ export function PushNotificationsPrompt() {
           aria-label="Dismiss"
           className="p-1 rounded-lg text-stone-400 hover:text-wine-800 hover:bg-blush-50"
           onClick={() => {
-            try {
-              sessionStorage.setItem('push_prompt_dismissed', '1')
-            } catch {
-              /* ignore */
+            if (mode === 'ask-permission') {
+              snoozePushPrompt(72)
+            } else {
+              try {
+                sessionStorage.setItem('push_setup_dismissed', '1')
+              } catch {
+                /* ignore */
+              }
             }
-            setDismissed(true)
-            setShow(false)
+            setMode('off')
           }}
         >
           <X className="w-4 h-4" />

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Navbar } from '@/components/Navbar'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { GuestProfileReadOnly } from '@/components/profile/GuestProfileReadOnly'
+import { PushNotificationSettingsCard } from '@/components/profile/PushNotificationSettingsCard'
 import { Users, KeyRound } from 'lucide-react'
 
 export default async function ProfilePage() {
@@ -43,6 +44,8 @@ export default async function ProfilePage() {
       </section>
 
       <section className="container-page max-w-2xl mt-6 space-y-6">
+        <PushNotificationSettingsCard />
+
         {guestLocked ? (
           <GuestProfileReadOnly
             fullName={profile.full_name}
