@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getEvents } from '@/app/actions/user'
 import { Carousel } from './Carousel'
+import { formatEventDateTimeIST } from '@/lib/datetime'
 import { Calendar, MapPin, Sparkles, Radio, BellRing, ExternalLink } from 'lucide-react'
 
 const MAPS_TILAK = 'https://maps.app.goo.gl/PoxeAPXuQ2P6ozaR6'
@@ -191,7 +192,7 @@ export function Itinerary({ events: initialEvents }: { events: any[] }) {
       ? raw.map((e, i) => ({
           id: e.id,
           name: e.name,
-          date: typeof e.date === 'string' ? formatDate(e.date) : e.date,
+          date: typeof e.date === 'string' ? formatEventDateTimeIST(e.date) : formatEventDateTimeIST(String(e.date)),
           location: e.location,
           live_status_message: e.live_status_message,
           order_index: e.order_index ?? i,
@@ -345,17 +346,4 @@ function LiveTrackerBanner({ liveEvents }: { liveEvents: Event[] }) {
       </div>
     </div>
   )
-}
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: '2-digit',
-    }) + ' · ' + d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
-  } catch {
-    return iso
-  }
 }

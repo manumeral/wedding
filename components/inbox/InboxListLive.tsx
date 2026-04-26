@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { listMyInbox, markManyInboxRead, type InboxListItem } from '@/app/actions/broadcasts'
+import { formatShortDateTimeChipsIST } from '@/lib/datetime'
 import { Mail } from 'lucide-react'
 
 export function InboxListLive({ initialItems }: { initialItems: InboxListItem[] }) {
@@ -64,12 +65,7 @@ export function InboxListLive({ initialItems }: { initialItems: InboxListItem[] 
             className={`card p-6 border-l-4 ${unread ? 'border-l-gold-400 bg-cream/40' : 'border-l-transparent'}`}
           >
             <p className="text-xs text-stone-500 mb-1">
-              {new Date(b.created_at).toLocaleString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+              {formatShortDateTimeChipsIST(b.created_at)}
               {b.audience === 'staff' && (
                 <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-amber-900">Team</span>
               )}

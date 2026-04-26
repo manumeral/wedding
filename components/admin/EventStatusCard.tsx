@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { updateEventLiveStatus } from '@/app/actions/admin'
+import { formatEventDateTimeIST } from '@/lib/datetime'
 import { Calendar, MapPin, Loader2, Sparkles, XCircle, Check } from 'lucide-react'
 
 interface EventRow {
@@ -21,17 +22,6 @@ const PRESETS = [
   'Wrapping up',
   'Ended — thanks for coming!',
 ]
-
-function formatDate(iso: string) {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
-      + ' · '
-      + d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
-  } catch {
-    return iso
-  }
-}
 
 export function EventStatusCard({ event }: { event: EventRow }) {
   const [message, setMessage] = useState(event.live_status_message ?? '')
@@ -77,7 +67,7 @@ export function EventStatusCard({ event }: { event: EventRow }) {
           <div className="flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-1 text-sm text-stone-500">
             <span className="inline-flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
-              {formatDate(event.date)}
+              {formatEventDateTimeIST(event.date)}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5" />

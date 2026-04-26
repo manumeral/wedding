@@ -8,6 +8,7 @@ import { Check, X, Loader2, Pencil, Shield, ShieldCheck, Crown } from 'lucide-re
 import { UserGroupsCell } from '@/components/admin/UserGroupsCell'
 import { GuestGroupLabelChips } from '@/components/admin/GuestGroupLabelChips'
 import { GuestProfileOverride } from '@/components/admin/GuestProfileOverride'
+import { formatUserDateShortIST } from '@/lib/datetime'
 
 interface User {
   id: string
@@ -218,7 +219,7 @@ export function UserRow({
         ))}
 
       <td className="px-6 py-4 text-xs text-stone-400 whitespace-nowrap">
-        {new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+        {formatUserDateShortIST(user.created_at)}
       </td>
     </tr>
   )

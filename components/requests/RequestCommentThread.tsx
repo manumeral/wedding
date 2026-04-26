@@ -9,6 +9,7 @@ import {
 } from '@/app/actions/requests'
 import { Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatShortDateTimeChipsIST } from '@/lib/datetime'
 
 type Props = {
   requestId: string
@@ -112,12 +113,7 @@ export function RequestCommentThread({ requestId, myUserId, isStaff }: Props) {
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-500 mb-0.5">
                     {who}
                     <span className="ml-2 font-normal normal-case text-stone-400">
-                      {new Date(c.created_at).toLocaleString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatShortDateTimeChipsIST(c.created_at)}
                     </span>
                   </p>
                   {c.body}

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
 import { buildRequestContentKey, findRecentDuplicateRequestId } from '@/lib/request-dedupe'
 import { notifyStaffInboxAndPush, requestTypeLabel } from '@/lib/staff-inbox-notify'
+import { formatTransportDetailIST } from '@/lib/datetime'
 
 function parseOptionalDateTime(raw: FormDataEntryValue | null): string | null {
   if (raw == null || typeof raw !== 'string') return null
@@ -115,13 +116,7 @@ export async function submitRequest(
   const bodyParts = [`${guestName} submitted a ${label} request.`]
   if (details) bodyParts.push('', details.length > 800 ? `${details.slice(0, 800)}…` : details)
   if (row.pickup_at) {
-    const at = new Date(String(row.pickup_at)).toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    if (at) bodyParts.push('', `Scheduled pickup / arrival: ${at}`)
+    bodyParts.push('', `Scheduled pickup / arrival: ${formatTransportDetailIST(String(row.pickup_at))}`)
   }
   if (row.pickup_location) bodyParts.push(`From: ${String(row.pickup_location)}`)
   if (row.dropoff_location) bodyParts.push(`To: ${String(row.dropoff_location)}`)

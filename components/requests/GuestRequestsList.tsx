@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getMyRequests } from '@/app/actions/requests'
 import { RequestCommentThread } from '@/components/requests/RequestCommentThread'
+import { formatTransportDetailIST, formatGuestRequestMetaIST } from '@/lib/datetime'
 import { Car, Plane, GlassWater, HelpCircle, Clock, CheckCircle2, UserCheck, MapPin } from 'lucide-react'
 
 const typeMeta: Record<string, { label: string; icon: typeof Car; color: string }> = {
@@ -97,12 +98,7 @@ export function GuestRequestsList({ initialRows, myUserId }: { initialRows: any[
                       {req.pickup_at && (
                         <li>
                           {req.type === 'cab' ? 'Pickup' : 'Arrival'}:{' '}
-                          {new Date(req.pickup_at).toLocaleString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                          {formatTransportDetailIST(req.pickup_at)}
                         </li>
                       )}
                       {req.pickup_location && (
@@ -115,24 +111,14 @@ export function GuestRequestsList({ initialRows, myUserId }: { initialRows: any[
                       {req.dropoff_at && (
                         <li>
                           Drop-off by:{' '}
-                          {new Date(req.dropoff_at).toLocaleString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                          {formatTransportDetailIST(req.dropoff_at)}
                         </li>
                       )}
                     </ul>
                   )}
                 {req.details && <p className="text-sm text-stone-600 mt-2 line-clamp-3">{req.details}</p>}
                 <p className="text-xs text-stone-400 mt-2">
-                  {new Date(req.created_at).toLocaleString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  })}
+                  {formatGuestRequestMetaIST(req.created_at)}
                 </p>
                 <p className="text-xs font-medium text-wine-600 mt-4 mb-0">Message thread</p>
                 <div className="mt-1.5 pl-0 border-t border-blush-100/80 pt-3">

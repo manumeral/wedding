@@ -10,6 +10,7 @@ import {
 } from '@/lib/google-drive'
 import { startDriveAuth, disconnectDrive } from '@/app/actions/drive'
 import { DriveTestButton } from '@/components/admin/DriveTestButton'
+import { formatDateTimeLongIST } from '@/lib/datetime'
 import {
   Camera,
   Link2 as LinkIcon,
@@ -163,9 +164,7 @@ function StatusLine({
   status: Awaited<ReturnType<typeof getConnectionStatus>>
 }) {
   if (status.state === 'connected') {
-    const when = status.connectedAt
-      ? new Date(status.connectedAt).toLocaleString()
-      : null
+    const when = status.connectedAt ? formatDateTimeLongIST(status.connectedAt) : null
     return (
       <p className="mt-1 text-sm text-stone-600">
         Authorized as{' '}

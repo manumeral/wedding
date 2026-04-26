@@ -6,6 +6,11 @@ import { getAllRequests, updateRequestStatus } from '@/app/actions/requests'
 import { MessageCircle, Clock, UserCheck, CheckCircle2, Car, Plane, GlassWater, HelpCircle, Inbox, MapPin } from 'lucide-react'
 import { RequestCommentThread } from '@/components/requests/RequestCommentThread'
 import { DeleteRequestButton } from '@/components/admin/DeleteRequestButton'
+import {
+  formatRequestCreatedTimeIST,
+  formatRequestCreatedDateLineIST,
+  formatTransportDetailIST,
+} from '@/lib/datetime'
 
 const typeIcon: Record<string, any> = { cab: Car, pickup: Plane, water: GlassWater, other: HelpCircle }
 const statusStyle: Record<string, string> = {
@@ -104,9 +109,9 @@ export function AdminRequestsPanel({
                     <Fragment key={req.id}>
                       <tr className="hover:bg-ivory transition align-top">
                         <td className="px-6 py-4 text-stone-500 whitespace-nowrap">
-                          {new Date(req.created_at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                          {formatRequestCreatedTimeIST(req.created_at)}
                           <div className="text-xs text-stone-400">
-                            {new Date(req.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            {formatRequestCreatedDateLineIST(req.created_at)}
                           </div>
                         </td>
                         <td className="px-6 py-4 font-medium text-wine-700">{req.users?.full_name || '—'}</td>
@@ -137,12 +142,7 @@ export function AdminRequestsPanel({
                               {req.pickup_at && (
                                 <p>
                                   <span className="text-stone-400">{req.type === 'cab' ? 'Pickup' : 'Arrival'}: </span>
-                                  {new Date(req.pickup_at).toLocaleString('en-IN', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                  })}
+                                  {formatTransportDetailIST(req.pickup_at)}
                                 </p>
                               )}
                               {req.pickup_location && (
@@ -155,12 +155,7 @@ export function AdminRequestsPanel({
                               {req.dropoff_at && (
                                 <p>
                                   <span className="text-stone-400">Drop-off: </span>
-                                  {new Date(req.dropoff_at).toLocaleString('en-IN', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                  })}
+                                  {formatTransportDetailIST(req.dropoff_at)}
                                 </p>
                               )}
                               {req.details && (
