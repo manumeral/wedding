@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
 import { buildRequestContentKey, findRecentDuplicateRequestId } from '@/lib/request-dedupe'
+import { notifyStaffInboxAndPush, requestTypeLabel } from '@/lib/staff-inbox-notify'
 
 function parseOptionalDateTime(raw: FormDataEntryValue | null): string | null {
   if (raw == null || typeof raw !== 'string') return null
@@ -103,6 +104,34 @@ export async function submitRequest(
     return { error: error.message }
   }
 
+  const { data: guestProfile } = await supabase
+    .from('users')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+  const guestName = guestProfile?.full_name?.trim() || 'A guest'
+  const label = requestTypeLabel(type)
+  const title = `New request: ${label}`
+  const bodyParts = [`${guestName} submitted a ${label} request.`]
+  if (details) bodyParts.push('', details.length > 800 ? `${details.slice(0, 800)}…` : details)
+  if (row.pickup_at) {
+    const at = new Date(String(row.pickup_at)).toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    if (at) bodyParts.push('', `Scheduled pickup / arrival: ${at}`)
+  }
+  if (row.pickup_location) bodyParts.push(`From: ${String(row.pickup_location)}`)
+  if (row.dropoff_location) bodyParts.push(`To: ${String(row.dropoff_location)}`)
+
+  void notifyStaffInboxAndPush({
+    title,
+    body: bodyParts.join('\n'),
+    createdByUserId: user.id,
+  }).catch((e) => console.error('[submitRequest] staff notify', e))
+
   revalidatePath('/requests')
   revalidatePath('/admin')
   return null
@@ -152,7 +181,15 @@ export async function updateRequestStatus(requestId: string, status: string) {
     throw new Error('Unauthorized')
   }
 
-  const { data: before } = await supabase.from('requests').select('status').eq('id', requestId).single()
+  const { data: reqRow, error: loadErr } = await supabase
+    .from('requests')
+    .select('type, status, user_id, users!requests_user_id_fkey(full_name)')
+    .eq('id', requestId)
+    .single()
+
+  if (loadErr || !reqRow) {
+    throw new Error(loadErr?.message ?? 'Request not found')
+  }
 
   const updates: Record<string, unknown> = { status }
   if (status === 'claimed') updates.assigned_admin_id = user.id
@@ -166,14 +203,112 @@ export async function updateRequestStatus(requestId: string, status: string) {
       request_id: requestId,
       actor_id: user.id,
       action: 'status_change',
-      old_status: before?.status ?? null,
+      old_status: reqRow.status,
       new_status: status,
     })
   } catch (e) {
     console.error('[requests.updateRequestStatus] audit log', e)
   }
 
+  if (status === 'claimed' || status === 'resolved') {
+    const u = reqRow.users as { full_name: string | null } | { full_name: string | null }[] | null
+    const guestRow = Array.isArray(u) ? u[0] : u
+    const guestName = guestRow?.full_name?.trim() || 'Guest'
+    const { data: actor } = await supabase.from('users').select('full_name').eq('id', user.id).single()
+    const actorName = actor?.full_name?.trim() || 'An organizer'
+    const label = requestTypeLabel(String(reqRow.type))
+    if (status === 'claimed') {
+      void notifyStaffInboxAndPush({
+        title: `On it: ${label} — ${guestName}`,
+        body: `${actorName} is handling ${guestName}'s ${label} request.`,
+        createdByUserId: user.id,
+        skipUserIds: [user.id],
+      }).catch((e) => console.error('[updateRequestStatus] staff notify', e))
+    } else {
+      void notifyStaffInboxAndPush({
+        title: `Resolved: ${label} — ${guestName}`,
+        body: `${actorName} marked ${guestName}'s ${label} request as done.`,
+        createdByUserId: user.id,
+        skipUserIds: [user.id],
+      }).catch((e) => console.error('[updateRequestStatus] staff notify', e))
+    }
+  }
+
   revalidatePath('/admin')
+  revalidatePath('/requests')
+}
+
+export type RequestCommentItem = {
+  id: string
+  body: string
+  created_at: string
+  user_id: string
+  author_name: string | null
+}
+
+/**
+ * For users who are either the request owner or an organizer. Uses the admin
+ * client to resolve author names (guests may not be allowed to read staff profiles via RLS).
+ */
+export async function getRequestComments(requestId: string): Promise<RequestCommentItem[]> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: r } = await supabase
+    .from('requests')
+    .select('id, user_id')
+    .eq('id', requestId)
+    .maybeSingle()
+  if (!r) return []
+
+  const { data: prof } = await supabase.from('users').select('admin_level').eq('id', user.id).single()
+  const isStaff = prof?.admin_level === 'admin' || prof?.admin_level === 'super_admin'
+  if (r.user_id !== user.id && !isStaff) return []
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('request_comments')
+    .select('id, body, created_at, user_id, users!request_comments_user_id_fkey(full_name)')
+    .eq('request_id', requestId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('[getRequestComments]', error)
+    return []
+  }
+
+  return (data ?? []).map((row: any) => {
+    const u = row.users
+    const g = Array.isArray(u) ? u[0] : u
+    return {
+      id: row.id,
+      body: row.body,
+      created_at: row.created_at,
+      user_id: row.user_id,
+      author_name: (g as { full_name: string | null } | null)?.full_name?.trim() ?? null,
+    }
+  })
+}
+
+export async function addRequestComment(
+  requestId: string,
+  body: string,
+): Promise<{ ok: true } | { error: string }> {
+  const t = body.trim()
+  if (!t) return { error: 'Message cannot be empty' }
+  if (t.length > 4000) return { error: 'Message is too long' }
+
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not signed in' }
+
+  const { error } = await supabase
+    .from('request_comments')
+    .insert({ request_id: requestId, user_id: user.id, body: t })
+
+  if (error) return { error: error.message }
+  return { ok: true }
 }
 
 export async function deleteRequest(requestId: string) {

@@ -129,6 +129,44 @@ create policy "Admins can delete requests"
   to authenticated
   using (public.is_admin());
 
+-- Comment threads on requests (guest <-> staff). Realtime: see migration 019.
+create table public.request_comments (
+  id uuid primary key default gen_random_uuid(),
+  request_id uuid not null references public.requests(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  check (char_length(body) between 1 and 4000)
+);
+
+create index request_comments_request_id_idx on public.request_comments (request_id);
+create index request_comments_request_created_idx on public.request_comments (request_id, created_at);
+
+alter table public.request_comments enable row level security;
+
+create policy "request_comments_select_parties"
+  on public.request_comments for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.requests r
+      where r.id = request_comments.request_id
+        and (r.user_id = auth.uid() or public.is_admin())
+    )
+  );
+
+create policy "request_comments_insert_parties"
+  on public.request_comments for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.requests r
+      where r.id = request_id
+        and (r.user_id = auth.uid() or public.is_admin())
+    )
+  );
+
 -- Events policies
 create policy "Anyone can view events." on events for select using (true);
 create policy "Admins can update events." on events for update using (public.is_admin());
@@ -255,6 +293,7 @@ create table public.broadcasts (
   title text not null,
   body text not null,
   targets_all_guests boolean not null default false,
+  audience text not null default 'guests' check (audience in ('guests', 'staff')),
   created_by uuid not null references public.users(id),
   created_at timestamptz not null default timezone('utc', now())
 );
@@ -422,8 +461,8 @@ begin
     end if;
   end if;
 
-  insert into public.broadcasts (title, body, targets_all_guests, created_by)
-  values (p_title, p_body, p_targets_all_guests, v_uid)
+  insert into public.broadcasts (title, body, targets_all_guests, created_by, audience)
+  values (p_title, p_body, p_targets_all_guests, v_uid, 'guests')
   returning id into v_broadcast_id;
 
   if not p_targets_all_guests then

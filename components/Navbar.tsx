@@ -7,6 +7,7 @@ import { Menu, X, LogOut, Mail } from 'lucide-react'
 import { Avatar } from './Avatar'
 import { signOut } from '@/app/actions/user'
 import { countUnreadInbox } from '@/app/actions/broadcasts'
+import { createClient } from '@/lib/supabase/client'
 
 interface NavbarProps {
   isAdmin?: boolean
@@ -42,13 +43,38 @@ export function Navbar({ isAdmin = false, transparent = false, minimalNav = fals
       setInboxUnread(0)
       return
     }
-    countUnreadInbox().then((n) => {
+    void countUnreadInbox().then((n) => {
       if (!cancelled) setInboxUnread(n)
     })
     return () => {
       cancelled = true
     }
   }, [user, pathname])
+
+  useEffect(() => {
+    if (!user) {
+      setInboxUnread(0)
+      return
+    }
+    const supabase = createClient()
+    const chRef: { current: ReturnType<typeof supabase.channel> | null } = { current: null }
+    void supabase.auth.getUser().then(({ data: { user: u } }): void => {
+      if (!u) return
+      chRef.current = supabase
+        .channel(`nav-inbox-${u.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'user_inbox', filter: `user_id=eq.${u.id}` },
+          () => {
+            void countUnreadInbox().then(setInboxUnread)
+          },
+        )
+        .subscribe()
+    })
+    return () => {
+      if (chRef.current) void supabase.removeChannel(chRef.current)
+    }
+  }, [user])
 
   const textColor = scrolled ? 'text-wine-800' : 'text-white'
   const hoverColor = scrolled ? 'hover:text-wine-600' : 'hover:text-gold-200'

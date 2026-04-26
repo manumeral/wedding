@@ -1,4 +1,9 @@
+'use client'
+
 import Image from 'next/image'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { getEvents } from '@/app/actions/user'
 import { Carousel } from './Carousel'
 import { Calendar, MapPin, Sparkles, Radio, BellRing, ExternalLink } from 'lucide-react'
 
@@ -17,6 +22,7 @@ function mapsUrlForEvent(name: string): string | undefined {
 }
 
 interface Event {
+  id?: string
   name: string
   date: string
   location: string
@@ -154,23 +160,81 @@ function EventCard({ event }: { event: Event }) {
   )
 }
 
-export function Itinerary({ events }: { events: any[] }) {
-  const displayEvents: Event[] = events.length > 0
-    ? events.map((e, i) => ({
-        name: e.name,
-        date: typeof e.date === 'string' ? formatDate(e.date) : e.date,
-        location: e.location,
-        live_status_message: e.live_status_message,
-        order_index: e.order_index ?? i,
-        mapsUrl: mapsUrlForEvent(e.name),
-      }))
-    : [
-        { name: "Tilak", date: "25 April '26 · Afternoon", location: "Vijaya Grand, Ashiana Nagar, Patna", order_index: 0, mapsUrl: MAPS_TILAK },
-        { name: "Haldi", date: "26 April '26 · Afternoon", location: "Chanakya Hotel, R Block, Patna", order_index: 1, mapsUrl: MAPS_CHANAKYA_CLUSTER },
-        { name: "Sangeet", date: "26 April '26 · Evening", location: "Chanakya Hotel, R Block, Patna", order_index: 2, mapsUrl: MAPS_CHANAKYA_CLUSTER },
-        { name: "Wedding", date: "27 April '26 · Night", location: "Chanakya Hotel, R Block, Patna", order_index: 3, mapsUrl: MAPS_CHANAKYA_CLUSTER },
-        { name: "Reception", date: "29 April '26 · Night", location: "Grand Ivory, Biscoman Bhavan, Patna", order_index: 4, mapsUrl: MAPS_RECEPTION },
-      ]
+export function Itinerary({ events: initialEvents }: { events: any[] }) {
+  const [raw, setRaw] = useState<any[]>(initialEvents)
+
+  useEffect(() => {
+    setRaw(initialEvents)
+  }, [initialEvents])
+
+  const refetch = useCallback(() => {
+    void getEvents()
+      .then((rows) => setRaw(rows || []))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const supabase = createClient()
+    const ch = supabase
+      .channel('events-itinerary')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
+        void refetch()
+      })
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [refetch])
+
+  const displayEvents: Event[] = useMemo(() => {
+    return raw.length > 0
+      ? raw.map((e, i) => ({
+          id: e.id,
+          name: e.name,
+          date: typeof e.date === 'string' ? formatDate(e.date) : e.date,
+          location: e.location,
+          live_status_message: e.live_status_message,
+          order_index: e.order_index ?? i,
+          mapsUrl: mapsUrlForEvent(e.name),
+        }))
+      : [
+          {
+            name: "Tilak",
+            date: "25 April '26 · Afternoon",
+            location: "Vijaya Grand, Ashiana Nagar, Patna",
+            order_index: 0,
+            mapsUrl: MAPS_TILAK,
+          },
+          {
+            name: "Haldi",
+            date: "26 April '26 · Afternoon",
+            location: "Chanakya Hotel, R Block, Patna",
+            order_index: 1,
+            mapsUrl: MAPS_CHANAKYA_CLUSTER,
+          },
+          {
+            name: "Sangeet",
+            date: "26 April '26 · Evening",
+            location: "Chanakya Hotel, R Block, Patna",
+            order_index: 2,
+            mapsUrl: MAPS_CHANAKYA_CLUSTER,
+          },
+          {
+            name: "Wedding",
+            date: "27 April '26 · Night",
+            location: "Chanakya Hotel, R Block, Patna",
+            order_index: 3,
+            mapsUrl: MAPS_CHANAKYA_CLUSTER,
+          },
+          {
+            name: "Reception",
+            date: "29 April '26 · Night",
+            location: "Grand Ivory, Biscoman Bhavan, Patna",
+            order_index: 4,
+            mapsUrl: MAPS_RECEPTION,
+          },
+        ]
+  }, [raw])
 
   const liveEvents = displayEvents.filter(
     (e) => e.live_status_message && e.live_status_message.trim().length > 0
@@ -196,7 +260,7 @@ export function Itinerary({ events }: { events: any[] }) {
 
         <Carousel>
           {displayEvents.map((ev, i) => (
-            <EventCard key={i} event={ev} />
+            <EventCard key={ev.id ?? i} event={ev} />
           ))}
         </Carousel>
       </div>
@@ -242,7 +306,7 @@ function LiveTrackerBanner({ liveEvents }: { liveEvents: Event[] }) {
           </div>
 
           <p className="mt-5 text-sm text-white/80 text-shadow-soft">
-            Stay on this page &mdash; we&rsquo;ll keep updating as the day unfolds. Pull to refresh on your phone to see the latest.
+            Status updates appear here automatically when organizers post them &mdash; stay on this page.
           </p>
         </div>
       </div>
@@ -276,7 +340,7 @@ function LiveTrackerBanner({ liveEvents }: { liveEvents: Event[] }) {
             <BellRing className="w-3.5 h-3.5" />
             Bookmark this page
           </p>
-          <p className="mt-0.5 text-stone-500">Refresh to see the latest status</p>
+          <p className="mt-0.5 text-stone-500">Live status updates without refreshing</p>
         </div>
       </div>
     </div>

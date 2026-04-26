@@ -16,6 +16,7 @@ export type InboxListItem = {
     body: string
     created_at: string
     targets_all_guests: boolean
+    audience?: 'guests' | 'staff' | null
   } | null
 }
 
@@ -75,7 +76,8 @@ export async function listMyInbox(): Promise<InboxListItem[]> {
         title,
         body,
         created_at,
-        targets_all_guests
+        targets_all_guests,
+        audience
       )
     `)
     .eq('user_id', user.id)
