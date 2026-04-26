@@ -96,3 +96,34 @@ export function formatDateTimeLongIST(iso: string) {
   if (!d) return '—'
   return d.toLocaleString('en-IN', { timeZone: TIMEZONE_IST, dateStyle: 'medium', timeStyle: 'short' })
 }
+
+/**
+ * HTML `datetime-local` values are `YYYY-MM-DDTHH:mm` with **no timezone**. Server actions run in
+ * UTC on Vercel, so `new Date(that)` wrongly treats them as UTC and shifts IST by +5:30.
+ * Interpret the components as **India (IST, +05:30)** wall time and return a UTC ISO string for `timestamptz`.
+ */
+export function parseDatetimeLocalAsISTToISO(raw: string | null | undefined): string | null {
+  if (raw == null || typeof raw !== 'string') return null
+  const s = raw.trim()
+  if (!s) return null
+
+  // Explicit offset or Z — trust the instant (e.g. API or migration)
+  if (/[zZ]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
+    const d = new Date(s)
+    if (Number.isNaN(d.getTime())) return null
+    return d.toISOString()
+  }
+
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s)
+  if (m) {
+    const sec = m[6] ?? '00'
+    const withOffset = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${sec}+05:30`
+    const d = new Date(withOffset)
+    if (Number.isNaN(d.getTime())) return null
+    return d.toISOString()
+  }
+
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toISOString()
+}

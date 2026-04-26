@@ -6,15 +6,11 @@ import { revalidatePath } from 'next/cache'
 import { isCabRequestsBetaEnabled } from '@/lib/cab-beta'
 import { buildRequestContentKey, findRecentDuplicateRequestId } from '@/lib/request-dedupe'
 import { notifyStaffInboxAndPush, requestTypeLabel } from '@/lib/staff-inbox-notify'
-import { formatTransportDetailIST } from '@/lib/datetime'
+import { formatTransportDetailIST, parseDatetimeLocalAsISTToISO } from '@/lib/datetime'
 
-function parseOptionalDateTime(raw: FormDataEntryValue | null): string | null {
+function parseFormDatetimeLocalIST(raw: FormDataEntryValue | null): string | null {
   if (raw == null || typeof raw !== 'string') return null
-  const s = raw.trim()
-  if (!s) return null
-  const d = new Date(s)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toISOString()
+  return parseDatetimeLocalAsISTToISO(raw)
 }
 
 export type SubmitRequestState = null | { error: string }
@@ -52,10 +48,10 @@ export async function submitRequest(
           'Cab and airport or railway pickup requests are not open yet. Choose another type or check back soon.',
       }
     }
-    const pickupAt = parseOptionalDateTime(formData.get('pickup_at'))
+    const pickupAt = parseFormDatetimeLocalIST(formData.get('pickup_at'))
     const pickupLoc = formData.get('pickup_location')
     const dropLoc = formData.get('dropoff_location')
-    const dropAt = parseOptionalDateTime(formData.get('dropoff_at'))
+    const dropAt = parseFormDatetimeLocalIST(formData.get('dropoff_at'))
 
     row.pickup_at = pickupAt
     row.pickup_location =

@@ -148,6 +148,10 @@ export function RequestForm({ cabBetaEnabled }: { cabBetaEnabled: boolean }) {
                 />
               </div>
             </div>
+            <p className="text-xs text-stone-500 -mt-1">
+              Times are stored as India Standard Time (IST) for Patna — enter the arrival or pickup time you mean in
+              local India time.
+            </p>
 
             <div>
               <label
