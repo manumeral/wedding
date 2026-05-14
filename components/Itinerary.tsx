@@ -7,18 +7,15 @@ import { getEvents } from '@/app/actions/user'
 import { Carousel } from './Carousel'
 import { formatEventDateTimeIST } from '@/lib/datetime'
 import { Calendar, MapPin, Sparkles, Radio, BellRing, ExternalLink } from 'lucide-react'
-
-const MAPS_TILAK = 'https://maps.app.goo.gl/PoxeAPXuQ2P6ozaR6'
-const MAPS_CHANAKYA_CLUSTER = 'https://maps.app.goo.gl/frvz2VfDY37JNeCTA'
-const MAPS_RECEPTION = 'https://maps.app.goo.gl/JbmDkeweu9CtZSCa8'
+import { site } from '@/lib/site'
 
 function mapsUrlForEvent(name: string): string | undefined {
   const n = name.toLowerCase()
-  if (n.includes('tilak')) return MAPS_TILAK
+  if (n.includes('tilak')) return site.maps.tilak
   if (n.includes('haldi') || n.includes('sangeet') || n.includes('wedding') || n.includes('pheras')) {
-    return MAPS_CHANAKYA_CLUSTER
+    return site.maps.venueCluster
   }
-  if (n.includes('reception')) return MAPS_RECEPTION
+  if (n.includes('reception')) return site.maps.reception
   return undefined
 }
 
@@ -37,7 +34,7 @@ const eventTheme = (name: string) => {
   const n = name.toLowerCase()
   if (n.includes('haldi')) {
     return {
-      image: '/images/haldi.png',
+      image: site.images.haldi,
       bg: 'from-gold-100 via-gold-200 to-gold-300',
       accent: 'text-gold-500',
       imgFit: 'object-contain object-bottom',
@@ -45,7 +42,7 @@ const eventTheme = (name: string) => {
   }
   if (n.includes('wedding') || n.includes('pheras')) {
     return {
-      image: '/images/palace-couple-night.png',
+      image: site.images.palaceCoupleNight,
       bg: 'from-blush-100 via-blush-200 to-wine-500',
       accent: 'text-wine-700',
       imgFit: 'object-cover object-[center_35%]',
@@ -69,7 +66,7 @@ const eventTheme = (name: string) => {
   }
   if (n.includes('reception')) {
     return {
-      image: '/images/couple-hero.png',
+      image: site.images.coupleHero,
       bg: 'from-wine-700 via-wine-800 to-black',
       accent: 'text-white',
       imgFit: 'object-cover object-[center_20%]',
@@ -204,35 +201,35 @@ export function Itinerary({ events: initialEvents }: { events: any[] }) {
             date: "25 April '26 · Afternoon",
             location: "Vijaya Grand, Ashiana Nagar, Patna",
             order_index: 0,
-            mapsUrl: MAPS_TILAK,
+            mapsUrl: site.maps.tilak,
           },
           {
             name: "Haldi",
             date: "26 April '26 · Afternoon",
             location: "Chanakya Hotel, R Block, Patna",
             order_index: 1,
-            mapsUrl: MAPS_CHANAKYA_CLUSTER,
+            mapsUrl: site.maps.venueCluster,
           },
           {
             name: "Sangeet",
             date: "26 April '26 · Evening",
             location: "Chanakya Hotel, R Block, Patna",
             order_index: 2,
-            mapsUrl: MAPS_CHANAKYA_CLUSTER,
+            mapsUrl: site.maps.venueCluster,
           },
           {
             name: "Wedding",
             date: "27 April '26 · Night",
             location: "Chanakya Hotel, R Block, Patna",
             order_index: 3,
-            mapsUrl: MAPS_CHANAKYA_CLUSTER,
+            mapsUrl: site.maps.venueCluster,
           },
           {
             name: "Reception",
             date: "29 April '26 · Night",
             location: "Grand Ivory, Biscoman Bhavan, Patna",
             order_index: 4,
-            mapsUrl: MAPS_RECEPTION,
+            mapsUrl: site.maps.reception,
           },
         ]
   }, [raw])

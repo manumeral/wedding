@@ -8,6 +8,7 @@ import { KeyRound, MessageCircleHeart, ImagePlus, ArrowRight, Users } from 'luci
 import { Avatar } from '@/components/Avatar'
 import { getGuests } from '@/app/actions/profile'
 import { isStaffLevel } from '@/lib/auth/roles'
+import { site } from '@/lib/site'
 
 export default async function Home() {
   const profile = await getUserProfile()
@@ -24,7 +25,7 @@ export default async function Home() {
     <main className="min-h-screen relative">
       <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>
         <Image
-          src="/images/palace-couple-night.png"
+          src={site.images.palaceCoupleNight}
           alt=""
           fill
           priority
@@ -90,7 +91,7 @@ export default async function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-wine-700 via-wine-800 to-wine-800" />
               <div className="absolute inset-0 opacity-35">
                 <Image
-                  src="/images/palace-couple-night.png"
+                  src={site.images.palaceCoupleNight}
                   alt=""
                   fill
                   className="object-cover object-[center_20%] mask-fade-b"
@@ -136,8 +137,8 @@ export default async function Home() {
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-soft-lg ring-1 ring-white/50">
               <Image
-                src="/images/palace-couple-night.png"
-                alt="Prachi and Mayank"
+                src={site.images.palaceCoupleNight}
+                alt={site.couple.photoAlt}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover object-[center_30%]"
@@ -145,20 +146,19 @@ export default async function Home() {
               <div className="absolute inset-0 bg-gradient-to-t from-wine-800/40 via-transparent to-transparent" />
             </div>
             <div className="animate-fade-up">
-              <p className="section-sub">the happy couple</p>
-              <h2 className="section-title mb-6">Our story, so far</h2>
-              <p className="text-stone-700 leading-relaxed mb-4">
-                Two people, one journey, and countless tiny moments that brought us here.
-                From first hellos to planning a life together &mdash; it still feels a little
-                unreal that the big day is just around the corner.
-              </p>
-              <p className="text-stone-700 leading-relaxed mb-6">
-                We can&apos;t wait to share every laugh, every dance, and every plate of food with you.
-                Thank you for making the trip and being part of our forever.
-              </p>
+              <p className="section-sub">{site.story.eyebrow}</p>
+              <h2 className="section-title mb-6">{site.story.title}</h2>
+              {site.story.paragraphs.map((p, i) => (
+                <p
+                  key={i}
+                  className={`text-stone-700 leading-relaxed ${i < site.story.paragraphs.length - 1 ? 'mb-4' : 'mb-6'}`}
+                >
+                  {p}
+                </p>
+              ))}
               <div className="flex items-center gap-3 text-wine-700">
                 <span className="h-px w-12 bg-gold-400" />
-                <span className="font-script text-3xl">Prachi &amp; Mayank</span>
+                <span className="font-script text-3xl">{site.couple.namesAmpersand}</span>
               </div>
             </div>
           </div>
@@ -234,7 +234,7 @@ export default async function Home() {
       <footer className="relative bg-wine-800 text-ivory py-14 overflow-hidden">
         <div className="absolute inset-0 opacity-25">
           <Image
-            src="/images/palace-couple-night.png"
+            src={site.images.palaceCoupleNight}
             alt=""
             fill
             className="object-cover object-[center_20%]"
@@ -243,16 +243,14 @@ export default async function Home() {
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-wine-800 via-wine-800/90 to-wine-800/70" />
         <div className="container-page relative text-center">
-          <p className="font-script text-5xl sm:text-6xl text-gold-200 mb-2">Prachi &amp; Mayank</p>
-          <p className="uppercase tracking-[0.35em] text-xs text-ivory/70">27 · April · 2026</p>
+          <p className="font-script text-5xl sm:text-6xl text-gold-200 mb-2">{site.couple.namesAmpersand}</p>
+          <p className="uppercase tracking-[0.35em] text-xs text-ivory/70">{site.footer.dateLine}</p>
           <div className="divider-ornament">
             <span className="h-px w-16 bg-gold-300/50" />
             <span className="text-lg text-gold-300">❖</span>
             <span className="h-px w-16 bg-gold-300/50" />
           </div>
-          <p className="text-ivory/70 text-sm max-w-md mx-auto">
-            Thank you for being part of our story. Safe travels, and see you on the dance floor.
-          </p>
+          <p className="text-ivory/70 text-sm max-w-md mx-auto">{site.footer.thanks}</p>
         </div>
       </footer>
       </div>

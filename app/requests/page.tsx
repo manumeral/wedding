@@ -7,6 +7,7 @@ import { RequestForm } from '@/components/requests/RequestForm'
 import { GuestRequestsList } from '@/components/requests/GuestRequestsList'
 import { HelpCircle } from 'lucide-react'
 import Image from 'next/image'
+import { site } from '@/lib/site'
 
 export default async function RequestsPage() {
   const [requests, profile, cabBeta] = await Promise.all([
@@ -23,7 +24,7 @@ export default async function RequestsPage() {
       <section className="relative pt-32 pb-14 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blush-100 via-cream to-gold-100" />
         <div className="absolute inset-0 opacity-10">
-          <Image src="/images/haldi.png" alt="" fill className="object-contain object-right" />
+          <Image src={site.images.haldi} alt="" fill className="object-contain object-right" />
         </div>
         <div className="container-page relative text-center">
           <p className="section-sub">we&apos;re here for you</p>

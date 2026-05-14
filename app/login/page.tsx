@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Mail, KeyRound, Loader2 } from 'lucide-react'
 import { requestMagicLink } from './actions'
+import { site } from '@/lib/site'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -47,7 +48,7 @@ function LoginForm() {
       <div className="card p-8 sm:p-10 backdrop-blur-sm bg-white/95 animate-fade-up">
         <div className="text-center mb-8">
           <p className="font-script text-3xl text-blush-400 mb-1">welcome</p>
-          <h1 className="font-serif text-4xl text-wine-700">Prachi &amp; Mayank</h1>
+          <h1 className="font-serif text-4xl text-wine-700">{site.couple.namesAmpersand}</h1>
           <div className="divider-ornament my-4">
             <span className="h-px w-12 bg-gold-300" />
             <span className="text-sm">❖</span>
@@ -131,9 +132,7 @@ function LoginForm() {
         )}
       </div>
 
-      <p className="text-center text-ivory/70 text-xs mt-6 text-shadow-soft">
-        27 · April · 2026
-      </p>
+      <p className="text-center text-ivory/70 text-xs mt-6 text-shadow-soft">{site.footer.dateLine}</p>
     </div>
   )
 }
@@ -143,7 +142,7 @@ export default function LoginPage() {
     <main className="relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden">
       <div className="absolute inset-0 z-0">
         <Image
-          src="/images/couple-hero.png"
+          src={site.images.coupleHero}
           alt=""
           fill
           priority

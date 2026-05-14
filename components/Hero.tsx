@@ -1,3 +1,5 @@
+import { site } from '@/lib/site'
+
 interface HeroProps {
   name?: string | null
 }
@@ -10,16 +12,18 @@ export function Hero({ name }: HeroProps) {
 
       <div className="relative z-10 text-center px-6 py-10 max-w-3xl animate-fade-up">
         <p className="font-script text-3xl sm:text-4xl text-gold-200 text-shadow-soft mb-3">
-          We&apos;re tying the knot
+          {site.hero.tagline}
         </p>
         <h1 className="font-serif text-6xl sm:text-7xl lg:text-8xl text-white text-shadow-strong leading-none tracking-tight">
-          Prachi <span className="font-script text-gold-300 text-5xl sm:text-6xl lg:text-7xl inline-block mx-2 align-middle">&amp;</span> Mayank
+          {site.couple.nameA}{' '}
+          <span className="font-script text-gold-300 text-5xl sm:text-6xl lg:text-7xl inline-block mx-2 align-middle">&amp;</span>{' '}
+          {site.couple.nameB}
         </h1>
 
         <div className="flex items-center justify-center gap-3 mt-8">
           <span className="h-px w-10 sm:w-16 bg-gold-300" />
           <p className="text-gold-200 font-sans tracking-[0.3em] text-sm sm:text-base uppercase text-shadow-soft">
-            27 &middot; April &middot; 2026
+            {site.hero.dateLine}
           </p>
           <span className="h-px w-10 sm:w-16 bg-gold-300" />
         </div>

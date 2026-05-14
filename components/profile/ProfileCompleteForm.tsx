@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { completeGuestProfile } from '@/app/actions/profile'
 import { Avatar } from '@/components/Avatar'
 import { Camera, Loader2, Check, AlertCircle } from 'lucide-react'
+import { site } from '@/lib/site'
 
 interface Props {
   userId: string
@@ -171,7 +172,7 @@ export function ProfileCompleteForm({ userId, initial }: Props) {
           value={bio}
           maxLength={MAX_BIO_LEN}
           onChange={(e) => setBio(e.target.value)}
-          placeholder="How do you know Prachi or Mayank? Anything fun other guests should know?"
+          placeholder={site.copy.knowCouplePlaceholder}
           className="w-full px-4 py-2.5 rounded-xl border border-blush-200 bg-white focus:ring-2 focus:ring-wine-500 focus:border-wine-500 outline-none transition resize-none"
         />
       </div>

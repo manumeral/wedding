@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Navbar } from '@/components/Navbar'
 import { Avatar } from '@/components/Avatar'
 import { Users, Pencil, Sparkles, Tag } from 'lucide-react'
+import { site } from '@/lib/site'
 
 export default async function GuestsPage() {
   const profile = await getUserProfile()
@@ -21,7 +22,7 @@ export default async function GuestsPage() {
 
       <section className="relative pt-32 pb-14 overflow-hidden">
         <div className="absolute inset-0 -z-10">
-          <Image src="/images/haldi.png" alt="" fill priority sizes="100vw" className="object-cover object-bottom opacity-60" />
+          <Image src={site.images.haldi} alt="" fill priority sizes="100vw" className="object-cover object-bottom opacity-60" />
           <div className="absolute inset-0 bg-gradient-to-b from-ivory via-ivory/80 to-ivory" />
         </div>
         <div className="container-page">

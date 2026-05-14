@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import { PushNotificationsPrompt } from "@/components/PushNotificationsPrompt";
+import { site } from "@/lib/site";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,8 +23,8 @@ const dancing = Dancing_Script({
 });
 
 export const metadata: Metadata = {
-  title: "Prachi & Mayank · 27 April 2026",
-  description: "The wedding portal for Prachi & Mayank — itinerary, logistics, and memories.",
+  title: site.meta.title,
+  description: site.meta.description,
 };
 
 export default function RootLayout({
