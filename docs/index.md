@@ -1,3 +1,8 @@
+---
+layout: default
+title: Home
+---
+
 # Wedding portal (open source)
 
 A full wedding website for guests: **magic-link login**, **itinerary**, **transport / help requests**, **shared photo gallery** (Google Drive), **admin tools**, and optional **web push**.

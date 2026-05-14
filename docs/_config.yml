@@ -1,21 +1,15 @@
-theme: minima
+# GitHub Pages (Project site: https://<user>.github.io/<repo>/)
+remote_theme: pages-themes/cayman@v0.2.0
 title: Wedding portal — documentation
 description: User guide, setup, and contributing for the open-source wedding Next.js + Supabase project.
-show_downloads: false
 
-# GitHub Project Pages: https://<user>.github.io/<repo>/
 url: "https://manumeral.github.io"
 baseurl: "/wedding"
 
-# Do not publish internal agent/spec history to the static site
+# Internal design history — do not publish to the static site
 exclude:
   - superpowers
   - README.md
   - assets/README.md
-
-header_pages:
-  - user-guide.md
-  - setup.md
-  - contributing.md
 
 markdown: kramdown

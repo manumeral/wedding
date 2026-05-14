@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: default
 title: User guide
 permalink: /user-guide/
 ---
