@@ -27,20 +27,69 @@ Non-goals for this effort: rewriting core architecture, replacing Supabase, or h
 
 **Credentials:** remain **only** in environment variables; `.env.example` stays the single source of truth for variable names and comments (Supabase, Google OAuth/Drive, optional VAPID).
 
-**Database content:** itinerary rows, guest groups, and admin-toggled flags stay **data plane**—fork authors apply migrations and use admin / seed flows as documented; no requirement to JSON-ify the whole itinerary in v1.
+**Database content:** itinerary rows, guest groups, and admin-toggled flags stay **data plane**—fork authors apply migrations and use admin UI, **Supabase Table Editor**, or **SQL Editor** as documented; no requirement to JSON-ify the whole itinerary in v1.
 
 ## 4. Documentation (GitHub Pages)
 
 **Source layout:** Markdown under repository **`docs/`** (or GitHub Pages–compatible subtree), deployed from **`main`** via **“Deploy from branch” → `/docs`** (or equivalent Settings).
 
+Writing style for all guides: **short paragraphs, numbered steps where it helps**, one idea per bullet, cross-links instead of duplication. Prefer **“do X, then Y”** over prose.
+
 **Pages:**
 
-| Document | Audience | Contents (summary) |
-| -------- | -------- | ------------------ |
-| `index.md` | Everyone | What the project is, feature list, link to live sample, link to other pages. |
-| `user-guide.md` | Couples / non-developers | Plain-language overview: magic-link guest login, itinerary, requests, photos, inbox/push at a high level; **never commit `.env` or paste secrets**; when to ask a technical friend; pointer to setup guide for deployment. |
-| `setup.md` | Developers | Clone, Node, `npm install`, `.env.local` from `.env.example`, create Supabase project, run migrations (`supabase` CLI or SQL as today), create Vercel project and env vars, custom domain, Google OAuth + Drive folder + `/admin/drive-auth` flow summary, optional web push keys. |
+| Document | Audience | Role |
+| -------- | -------- | ---- |
+| `index.md` | Everyone | Landing: what the project is, feature list, link to live sample, links to all guides. |
+| `user-guide.md` | Couples / organizers (incl. “spreadsheet-comfortable” readers) | **Day-to-day operations**: portal features for guests + how to change **events**, **staff roles**, and toggles **using Supabase** (Table Editor + copy-paste SQL). Links to **setup** for first-time Vercel/Supabase/connect. |
+| `setup.md` | Whoever deploys (often a technical friend) | **First-time host**: Supabase project, schema + seed, env vars, Vercel deploy & domain, Google Drive OAuth wiring, optional web push. Granular substeps below. |
 | `contributing.md` | Contributors | Branch/PR expectations, `npx tsc --noEmit`, note that `npm run lint` may prompt first-time ESLint setup in Next.js; issue conventions. |
+
+### 4.1 `user-guide.md` — required sections (succinct but granular)
+
+1. **What guests see** — One screen each: login (magic link), home / itinerary, requests, photos gallery, inbox / notifications (high level only).  
+2. **What you never put in chat or email** — Service role key, `.env` contents, Google client secret; point to **SECURITY.md**.  
+3. **Supabase in one minute** — Project = database + auth; you **log into the Supabase dashboard** for your project; two tools used here: **Table Editor** (spreadsheet-like) and **SQL Editor** (run one-off commands).  
+4. **Editing itinerary events**  
+   - **Table:** `public.events`. Columns that matter: `name`, `date` (**timestamptz** — use your timezone, e.g. `+05:30` for India), `location`, `order_index` (sort order on the site), `live_status_message` (optional short line for “live” UI).  
+   - **Easy path:** Table Editor → `events` → edit rows inline.  
+   - **SQL path (examples in the doc):** `UPDATE` a single event’s time/name/location; remind that `id` is UUID if targeting one row; link to `supabase/seed.sql` as a pattern for `timestamptz '... +05:30'`.  
+5. **Staff and admins (`public.users`)**  
+   - **Roles:** `admin_level` is one of `none` | `admin` | `super_admin`.  
+   - **Bootstrap first super-admin:** After the user has **signed in once** (so a `public.users` row exists), run in **SQL Editor**: `update public.users set admin_level = 'super_admin' where email = 'organizer@example.com';` — note that dashboard SQL runs **without** a user JWT, so this bypasses the in-app “only super_admin may edit roles” rule (see migration comment in repo).  
+   - **Promote another organizer:** same pattern with `'admin'` or `'super_admin'`.  
+   - **Caveat:** In-app role changes afterward follow RLS/trigger rules; doc should say “for bulk fixes, SQL Editor + correct email.”  
+6. **Optional app toggles (`app_config`)** — Mention that keys like **cab request beta** may exist; **reads** can be shown in Table Editor if RLS allows (or “ask your dev” — `app_config` is service-role-only for writes from the app). Keep **one line**: don’t manually paste secrets into `app_config`; use the admin UI where provided.  
+7. **When to open `setup.md`** — New project, broken deploy, new domain, first-time Google Drive.  
+8. **Screenshots** — Link to `docs/assets/` examples from the live sample where useful.
+
+### 4.2 `setup.md` — required sections (Supabase + Vercel + Drive)
+
+**A. Supabase (host the database & auth)**  
+1. Create a project (region choice, DB password safe storage).  
+2. **Auth:** note magic-link / email provider is used; URL configuration: **Site URL** and **Redirect URLs** must include production and localhost (exact paths as in Supabase auth docs + app `/auth/*` routes — implementation plan will lift from existing deployment doc).  
+3. **Schema:** apply migrations in order from `supabase/migrations/` **or** link Supabase CLI `db push`; confirm `schema.sql` is not the only source if migrations diverge (doc: **migrations win**).  
+4. **Seed:** run `supabase/seed.sql` once in SQL Editor (idempotent) for sample `events`.  
+5. **Keys:** where to copy `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (service role **server-only**).  
+
+**B. Vercel (publish the Next.js app)**  
+1. Import Git repo (fork); framework Next.js.  
+2. **Environment variables:** mirror **every** row from `.env.example` the deployment needs (group “build” vs “runtime” if any differ).  
+3. First deploy; fix build logs if env missing.  
+4. **Domain:** add custom domain in Vercel; DNS records (A/ALIAS/CNAME) as Vercel shows; then update Supabase Auth redirect URLs to the **final** HTTPS origin.  
+5. **Smoke test:** magic link from production URL, one admin login, open itinerary.  
+
+**C. Google Drive & photos (granular)**  
+1. **Google Cloud:** create project; enable **Google Drive API**; OAuth consent screen (External or Internal as applicable); add scope for Drive (path used by app — implementation references `lib/google-drive.ts` / `/admin/drive-auth`).  
+2. **OAuth client (Web):** Client ID + Client Secret; **Authorized redirect URIs** — `https://<prod>/auth/google/callback` and `http://localhost:3000/auth/google/callback`.  
+3. **Env:** `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` (per environment), `GOOGLE_DRIVE_FOLDER_ID` (folder **owned by** the Google account that will authorize).  
+4. **One-time organizer flow:** deploy app with env set → sign in as organizer → open **`/admin/drive-auth`**, complete Google sign-in; confirm refresh token lands in `app_config` (server-side; **do not** paste token in docs).  
+5. **Guest uploads / gallery:** short note: uploads go to that folder; gallery reads use stored token; if auth fails, re-run drive-auth flow.  
+
+**D. Optional web push** — Pointer to `.env.example` VAPID vars and profile toggle; one paragraph.  
+
+### 4.3 `contributing.md` & `index.md`
+
+Unchanged intent; `index.md` should tease the three pillars: **User guide** (operate data + guest experience), **Setup** (Supabase + Vercel + Drive), **Contributing**.
 
 **Visual assets:** `docs/assets/` (or similar) for **screenshots** captured from **prachiwedsmayank.in**; **crop or use guest-safe views** so guest PII (names, emails, rooms, threads) does not appear in pixels. Short screen recordings optional.
 
@@ -69,13 +118,14 @@ Tracked files today should remain limited to **`.env.example`** / **`.env.local.
 1. Add LICENSE, SECURITY.md, expand root README with Pages links.  
 2. Introduce `site` module; thread key strings/paths from Hero, `layout` metadata, and other obvious single-source branding touchpoints without changing visible behavior for the reference deploy.  
 3. Add `public/images/README.md`.  
-4. Author `docs/` Markdown + embed screenshot assets; enable GitHub Pages.  
+4. Author `docs/` Markdown following **§4.1–4.3** (user guide incl. Supabase Table/SQL for events & admins; setup with Supabase + Vercel + Drive substeps) + embed screenshot assets; enable GitHub Pages.  
 5. Run secret audit; add CI scan if desired.  
 6. Tag a **v1 template** release when stable.
 
-## 8. Spec self-review (2026-05-14)
+## 8. Spec self-review
 
-- **Placeholders:** None intentional; owner name left as Mayank per prior specs.  
-- **Consistency:** Git history policy matches conversation (A); Pages scope matches “docs only.”  
-- **Scope:** Single OSS/template + docs track; implementation details (exact `site` export shape) left to implementation plan.  
-- **Ambiguity:** Fork authors may still edit components for deep customization—acceptable; v1 focuses on module + checklist. Live sample domain spelled as agreed.
+**2026-05-14 (initial):** Git history policy (A); Pages = docs only; scope = template + guides.  
+**2026-05-14 (amendment):** User guide explicitly includes **Supabase-operational** content (events + `users.admin_level` SQL); setup guide split into **granular Supabase, Vercel, Google Drive** substeps; writing style = succinct + stepwise.  
+- **Placeholders:** Auth redirect URL literals to be copied from existing deployment spec during implementation—not duplicated here.  
+- **Consistency:** `app_config` described as server-managed for secrets; aligns with schema.  
+- **Ambiguity:** “Migrations win” over raw `schema.sql` if drift—call out in setup doc body when writing.
