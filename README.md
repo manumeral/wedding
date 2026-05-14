@@ -10,7 +10,7 @@ Full guides for couples, deployers, and contributors:
 
 **[→ Project documentation](https://manumeral.github.io/wedding/)**
 
-If you fork the repo, update `docs/_config.yml` (`baseurl`, `url`) so links match your GitHub Pages URL, or host the `docs/` folder elsewhere.
+To publish these docs: GitHub repo **Settings → Pages → Build and deployment**: source **Deploy from a branch**, branch **`main`**, folder **`/docs`**. Forks should edit `docs/_config.yml` (`url`, `baseurl`) if the Pages URL changes.
 
 ## Quick start (developers)
 
